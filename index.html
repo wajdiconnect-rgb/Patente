@@ -507,15 +507,16 @@ const aiKey=()=>store.get('ai-key','').trim();const aiSignsOn=()=>store.get('ai-
 const MODELS=['claude-haiku-5-5','claude-sonnet-5-5'];let modelIdx=0;window.aiBusy=false;const chat=[];
 const isGemini=()=>!/^sk-ant/.test(aiKey());let aiPauseUntil=0;
 const GEM=['gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-flash-latest','gemini-3.6-flash','gemini-2.5-flash-lite','gemini-2.5-flash'];let gemIdx=0;
-async function claude(messages,system,maxTokens,json){if(Date.now()<aiPauseUntil)throw new Error('limite gratuito raggiunto, riprovo tra poco');return isGemini()?gemini(messages,system,maxTokens,json):claudeAPI(messages,system,maxTokens)}
-async function gemini(messages,system,maxTokens,json){const key=aiKey();
+async function claude(messages,system,maxTokens,json,vision){if(Date.now()<aiPauseUntil)throw new Error('limite gratuito raggiunto, riprovo tra poco');return isGemini()?gemini(messages,system,maxTokens,json,vision):claudeAPI(messages,system,maxTokens)}
+const GEM_VISION=['gemini-flash-latest','gemini-2.5-flash','gemini-3.6-flash','gemini-flash-lite-latest','gemini-2.5-flash-lite'];let gemVisIdx=0;
+async function gemini(messages,system,maxTokens,json,vision){const key=aiKey();const LIST=vision?GEM_VISION:GEM;const start=vision?gemVisIdx:gemIdx;
  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:(typeof m.content==='string'?[{text:m.content}]:m.content.map(c=>c.type==='image'?{inline_data:{mime_type:'image/jpeg',data:c.source.data}}:{text:c.text}))}));
  let lastErr=null,quota=0;
- for(let k=0;k<GEM.length;k++){const mi=(gemIdx+k)%GEM.length;const body={systemInstruction:{parts:[{text:system}]},contents,generationConfig:{maxOutputTokens:Math.max(1024,maxTokens*4),temperature:0.3}};if(json)body.generationConfig.responseMimeType='application/json';
-  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEM[mi]+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)})}catch(e){lastErr=new Error('connessione assente');break}
-  if(r.ok){const j=await r.json();const txt=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('').trim();if(txt){gemIdx=mi;return txt}lastErr=new Error('risposta vuota');continue}
+ for(let k=0;k<LIST.length;k++){const mi=(start+k)%LIST.length;const body={systemInstruction:{parts:[{text:system}]},contents,generationConfig:{maxOutputTokens:Math.max(1024,maxTokens*4),temperature:vision?0:0.3}};if(json)body.generationConfig.responseMimeType='application/json';
+  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+LIST[mi]+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)})}catch(e){lastErr=new Error('connessione assente');break}
+  if(r.ok){const j=await r.json();const txt=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('').trim();if(txt){if(vision)gemVisIdx=mi;else gemIdx=mi;return txt}lastErr=new Error('risposta vuota');continue}
   const t=await r.text();if(r.status===400&&/API_KEY_INVALID|API key not valid/i.test(t))throw new Error('la chiave non è valida');if(r.status===403)throw new Error('la chiave non è valida o non è attiva');
-  if(r.status===429){quota++;lastErr=new Error('limite gratuito raggiunto, riprovo tra poco');continue}
+  if(r.status===404){lastErr=new Error('modello non disponibile');continue}if(r.status===429){quota++;lastErr=new Error('limite gratuito raggiunto, riprovo tra poco');continue}
   lastErr=new Error('errore '+r.status)}
  if(quota)aiPauseUntil=Date.now()+120000;throw lastErr||new Error('servizio non disponibile')}
 async function claudeAPI(messages,system,maxTokens){const key=aiKey();if(!key)throw new Error('manca la chiave');let lastErr=null;
@@ -537,23 +538,34 @@ window.askAI=askAI;window.aiCall=(m,sys,max,json)=>claude(m,sys,max,json);window
 let signBusy=false,lastSign=0;let seenSign={};try{const d=JSON.parse(localStorage.getItem('ppi-signs-said2')||'{}');const now=Date.now();for(const k in d)if(now-d[k]<1800000)seenSign[k]=d[k]}catch(e){}
 const SYS_SIGN='Guardi le foto della telecamera di un\'auto in Italia per un\'app di scuola guida. Rispondi SOLO con JSON valido, senza altro testo.';
 const camTag=t=>{const l=document.querySelector('.camlabel');if(l)l.textContent='● LIVE'+(t?' · '+t:'')};
+const SIGN_Q='Foto dalla telecamera di un\'auto in Italia. Compito: dire SOLO i segnali stradali che si vedono DAVVERO in questa foto, nitidi e leggibili. Regole severe: 1) non inventare mai; se hai anche un piccolo dubbio, non metterlo; 2) per i limiti di velocità e per tutti i cartelli con numeri leggi il numero cifra per cifra, esattamente come è scritto (70 è 70, non 50); se il numero non è perfettamente leggibile, non mettere il cartello; 3) ignora nomi di vie, pubblicità, insegne, cartelli lontani, di spalle, coperti o sfocati; 4) "sicurezza" da 0 a 100: metti 90 o più solo se il cartello è grande, nitido e sei certo. Scegli UNO solo, il più importante. Formato JSON: {"cartelli":[{"nome":"nome ufficiale italiano del segnale, con il numero se c\'è (es. Limite massimo di velocità 70 km/h)","numero":"numero scritto sul cartello oppure stringa vuota","sicurezza":95,"spiegazione":"due o tre frasi semplici da istruttore: cosa significa, cosa fare adesso, cosa chiedono all\'esame. Se c\'è un numero, usa esattamente quel numero."}]}. Se non c\'è niente di sicuro: {"cartelli":[]}';
+async function askSign(img){const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:SIGN_Q}]}],SYS_SIGN,500,true,true);
+ const m=txt.match(/\{[\s\S]*\}/);const j=m?JSON.parse(m[0]):{cartelli:[]};const c=(j.cartelli||[])[0];if(!c||!c.nome)return null;
+ const conf=Number(c.sicurezza)||0;if(conf<88)return null;const num=String(c.numero||'').replace(/[^0-9,.]/g,'');
+ if(num&&!String(c.nome).includes(num))c.nome=c.nome+' '+num;c.num=num;return c}
+const sameSign=(a,b)=>{if(!a||!b)return false;if((a.num||'')!==(b.num||''))return false;const wa=norm(a.nome).split(' ').filter(x=>x.length>3),wb=norm(b.nome).split(' ').filter(x=>x.length>3);const c=wa.filter(x=>wb.includes(x)).length;return c/Math.max(1,Math.min(wa.length,wb.length))>=0.5};
 async function readSign(manual){if(signBusy)return;if(!aiKey()){camTag('manca chiave Gemini');if(manual)Voice.say('Per leggere i cartelli mi serve la chiave gratuita di Gemini. Inseriscila nella pagina Voce.',true);return}
  if(!camLive()){if(manual)startCamera();return}
- const img=frame(800);if(!img){camTag('telecamera in avvio');return}signBusy=true;lastSign=Date.now();camTag('👁 guardo…');
- try{const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Questa è la foto dalla telecamera di un\'auto in Italia. C\'è un segnale stradale (cartello verticale, semaforo, segnale orizzontale importante come lo STOP a terra, o un agente che fa segnali) ben visibile e leggibile? Scegli il più importante, UNO solo. Ignora nomi delle vie, pubblicità, insegne dei negozi, cartelli troppo lontani, sfocati o di cui non sei sicuro. Formato: {"cartelli":[{"nome":"nome ufficiale italiano del segnale","spiegazione":"due o tre frasi semplici, come un istruttore di scuola guida: cosa significa, cosa deve fare il conducente adesso, e cosa chiedono all\'esame della patente"}]}. Se non c\'è un segnale così: {"cartelli":[]}'}]}],SYS_SIGN,400,true);
-  const m=txt.match(/\{[\s\S]*\}/);const j=m?JSON.parse(m[0]):{cartelli:[]};const c=(j.cartelli||[])[0];
-  if(!c||!c.nome){camTag('nessun cartello');if(manual)Voice.say('Adesso non vedo cartelli chiari davanti a te.',true);return}
+ const img=frame(1024);if(!img){camTag('telecamera in avvio');return}signBusy=true;lastSign=Date.now();camTag('👁 guardo…');
+ try{const c=await askSign(img);
+  if(!c){camTag('nessun cartello sicuro');if(manual)Voice.say('Adesso non vedo cartelli chiari e sicuri davanti a te.',true);return}
+  camTag('🔎 controllo: '+c.nome);await new Promise(r=>setTimeout(r,1200));const img2=frame(1024);const c2=img2?await askSign(img2):null;
+  if(!sameSign(c,c2)){camTag('non sicuro, non dico niente');if(manual)Voice.say('Non sono sicuro di quel cartello, quindi non ti dico niente per non sbagliare.',true);return}
   const k=norm(c.nome);if(!manual&&seenSign[k]){camTag('già spiegato: '+c.nome);return}
   seenSign[k]=Date.now();try{localStorage.setItem('ppi-signs-said2',JSON.stringify(seenSign))}catch(e){}
-  camTag('✅ '+c.nome);showSignIcon(c.nome);Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'.');String(c.spiegazione||'').match(/[^.!?]+[.!?]?/g)?.map(x=>x.trim()).filter(Boolean).forEach(x=>Voice.say(x))}
+  camTag('✅ '+c.nome);showSignIcon(c.nome,c.num);Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'.');String(c.spiegazione||'').match(/[^.!?]+[.!?]?/g)?.map(x=>x.trim()).filter(Boolean).forEach(x=>Voice.say(x))}
  catch(e){camTag('⚠️ '+(e.message||'errore'));if(manual)Voice.say('Non riesco a leggere il cartello: '+(e.message||'errore')+'.',true)}finally{signBusy=false}}
 window.readSign=readSign;
 const sigBox=document.createElement('div');sigBox.className='seenSign';sigBox.innerHTML='<img alt=""><b></b>';document.body.appendChild(sigBox);let sigT=null;
 function signIcon(name){const n=norm(name);const L=window._courseLessons||[];let best=null,bs=0;
  for(const t of L){if(!t[6]||t[7]===1)continue;const k=norm(t[0]);if(k===n)return t;const w=k.split(' ').filter(x=>x.length>3);if(!w.length)continue;const sc=w.filter(x=>n.includes(x)).length/w.length;if(sc>bs){bs=sc;best=t}}
  return bs>=0.6?best:null}
-function showSignIcon(name){const t=signIcon(name);const img=sigBox.querySelector('img');
- if(t&&/\.jpg$/.test(t[6])){img.src=t[6].replace(/\.jpg$/,'_s.png');img.style.display='block';img.onerror=()=>{img.style.display='none'}}else img.style.display='none';
+function numIcon(name,num){const n=norm(name);const svg=(inner)=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">'+inner+'</svg>');const fs=num.length>=3?78:96;
+ if(/fine/.test(n)&&/limit|velocit/.test(n))return svg('<circle cx="100" cy="100" r="94" fill="#fff" stroke="#222" stroke-width="3"/><text x="100" y="132" font-family="Arial,Helvetica" font-weight="700" font-size="'+fs+'" text-anchor="middle" fill="#8a8f94">'+num+'</text><line x1="40" y1="160" x2="160" y2="40" stroke="#111" stroke-width="16"/>');
+ if(/limit|velocit|km/.test(n))return svg('<circle cx="100" cy="100" r="92" fill="#fff" stroke="#d6141f" stroke-width="20"/><text x="100" y="132" font-family="Arial,Helvetica" font-weight="700" font-size="'+fs+'" text-anchor="middle" fill="#111">'+num+'</text>');
+ return null}
+function showSignIcon(name,num){const t=signIcon(name);const img=sigBox.querySelector('img');const ni=num?numIcon(name,num):null;
+ if(ni){img.src=ni;img.style.display='block';img.onerror=null}else if(t&&/\.jpg$/.test(t[6])&&!/limite di velocit/i.test(t[0])){img.src=t[6].replace(/\.jpg$/,'_s.png');img.style.display='block';img.onerror=()=>{img.style.display='none'}}else img.style.display='none';
  sigBox.querySelector('b').textContent=name;sigBox.classList.add('on');clearTimeout(sigT);const t0=Date.now();
  const hide=()=>{if(Date.now()-t0<6000||Voice.busy){sigT=setTimeout(hide,700);return}sigBox.classList.remove('on')};sigT=setTimeout(hide,1500)}
 window.showSignIcon=showSignIcon;
