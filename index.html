@@ -610,6 +610,7 @@ window.toggleCallAI=function(){unlockAudio();callOn=!callOn;
 const vBtn=document.createElement('button');vBtn.className='voiceBtn';vBtn.innerHTML='🔊';vBtn.title='Cambia voce';wrap.appendChild(vBtn);vBtn.addEventListener('click',()=>{unlockAudio();window.cambiaVoce()});
 setInterval(()=>{if(!started){heard.style.display='none';return}if(!heard.textContent||heard.style.display==='none'){micLabel(rec?'🎙️ Ti ascolto':'🔊 Sto parlando · tocca 🎙️ per farmi una domanda')}},1500);
 bigStart.addEventListener('click',()=>{if(started)stopAll();else startAll(false)});
+window._driveOff=function(){started=false;bigStart.classList.remove('on');bigStart.innerHTML='▶ AVVIA';try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}try{const v=document.getElementById('video');if(v)v.srcObject=null}catch(e){}try{stopGPS()}catch(e){}try{endRoute(true)}catch(e){}try{hide3D()}catch(e){}};
 window.addEventListener('load',refresh);setTimeout(refresh,500);
 })();
 </script><style id="splitScreenLayout">
@@ -824,4 +825,48 @@ render();})();
 .seenSign b{font-size:15px;line-height:1.2;color:#0d2236;text-align:center}
 body.night .seenSign{background:#101f32f5}body.night .seenSign b{color:#fff}
 </style>
+<style id="modoCasaCss">
+.modePill{position:fixed;z-index:3500;top:calc(env(safe-area-inset-top) + 14px);left:62px;width:44px;height:44px;border-radius:50%;border:1px solid #b9cfe2;background:#fff;font-size:22px;line-height:1;padding:0;box-shadow:0 2px 10px #0002}
+@media (orientation:landscape) and (max-height:560px){.modePill{top:auto;left:auto;right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px)}}
+body.casa #guida .mapwrap{display:none!important}
+body.casa #guida .learningHalf{height:100%!important;flex:1 1 100%!important;width:100%!important;border-left:0!important}
+body.casa #guida .learningHalf .lessonfeature>img,body.casa #guida .learningHalf .lessonfeature img{max-height:58dvh!important}
+body.casa #guida .learningHalf .status{display:none}
+body.casa .seenSign{display:none!important}
+.casaText{display:none;font-size:17px;line-height:1.55;color:#18324a;margin:12px 4px 4px;white-space:pre-wrap}
+body.casa .casaText{display:block}
+body.night .casaText{color:#e6eef6}
+@media (orientation:landscape) and (max-height:560px){
+ body.casa.land-guida header{display:flex!important}body.casa.land-guida .nav{display:flex!important}
+ body.casa #guida.view.active{height:auto!important;max-height:none!important}
+ body.casa #guida .learningHalf .lessonfeature{display:grid;grid-template-columns:52% 1fr;gap:12px;align-items:start}
+ body.casa #guida .learningHalf .lessonfeature>*{grid-column:1/-1}
+ body.casa #guida .learningHalf .lessonfeature>img{grid-column:1;max-height:calc(100dvh - 190px)!important}
+ body.casa #guida .learningHalf .lessonfeature .casaText{grid-column:2;grid-row:2 / span 3;margin:0;max-height:calc(100dvh - 190px);overflow:auto}
+}
+.modeAsk{position:fixed;inset:0;z-index:5000;background:#0d1b2acc;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modeAsk .box{background:#fff;border-radius:24px;padding:24px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 20px 60px #0008}
+.modeAsk h2{margin:0 0 6px;font-size:22px;color:#102a40}.modeAsk p{margin:0 0 18px;color:#4a6378;font-size:15px}
+.modeAsk .row{display:flex;gap:12px}
+.modeAsk button{flex:1;border:2px solid #d3dfea;background:#f6f9fc;border-radius:18px;padding:16px 8px;font-size:15px;font-weight:800;color:#102a40;display:flex;flex-direction:column;align-items:center;gap:6px}
+.modeAsk button span{font-size:38px}.modeAsk button small{font-weight:500;color:#5a7085;font-size:12px}
+.modeAsk button.last{border-color:#0a8a5f;background:#eaf7f1}
+</style>
+<script id="modoCasa">
+(function(){const KEY='app-mode';let mode=null;try{mode=localStorage.getItem(KEY)}catch(e){}
+const pill=document.createElement('button');pill.className='modePill';pill.type='button';document.body.appendChild(pill);
+const feat=document.querySelector('#guida .lessonfeature');const txt=document.createElement('div');txt.className='casaText';
+if(feat){const ctr=feat.querySelector('.lessoncontrols');if(ctr)ctr.after(txt);else feat.appendChild(txt)}
+setInterval(()=>{const e=document.getElementById('autoExplain');const t=e?e.textContent.trim():'';if(txt.textContent!==t)txt.textContent=t},800);
+function apply(m,save){mode=m;document.body.classList.toggle('casa',m==='casa');pill.textContent=m==='casa'?'🏠':'🚗';pill.title=m==='casa'?'Modo casa: tocca per passare al modo auto':'Modo auto: tocca per passare al modo casa';pill.setAttribute('aria-label',pill.title);
+ if(save)try{localStorage.setItem(KEY,m)}catch(e){}
+ if(m==='casa'){window._driveOff&&window._driveOff();if(typeof show==='function'&&!document.getElementById('guida').classList.contains('active')&&!document.querySelector('.view.active'))show('guida')}
+ setTimeout(()=>window.dispatchEvent(new Event('resize')),250)}
+pill.onclick=()=>apply(mode==='casa'?'auto':'casa',true);
+function ask(){const d=document.createElement('div');d.className='modeAsk';
+ d.innerHTML='<div class="box"><h2>Dove sei?</h2><p>Così ti mostro solo quello che serve.</p><div class="row"><button type="button" data-m="auto"><span>🚗</span>In auto<small>mappa, telecamera, solo voce</small></button><button type="button" data-m="casa"><span>🏠</span>A casa<small>casa, ufficio, bar: lezione a tutto schermo</small></button></div></div>';
+ d.querySelectorAll('button').forEach(b=>{if(b.dataset.m===mode)b.classList.add('last');b.onclick=()=>{apply(b.dataset.m,true);d.remove()}});document.body.appendChild(d)}
+apply(mode==='casa'?'casa':'auto',false);ask();
+})();
+</script>
 </body></html>
