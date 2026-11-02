@@ -716,13 +716,13 @@ const I={play:'<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11
 stop:'<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="#fff"/></svg>',
 rip:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
 quiz:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5l2.2 2.2L16 9"/><rect x="3.5" y="3.5" width="17" height="17" rx="4"/></svg>'};
-box.innerHTML='<button class="sm bRip" aria-label="Ripeti la lezione"><span class="ic">'+I.rip+'</span><span>Ripeti</span></button><button class="main bPlay" aria-label="Ascolta la lezione"><span class="ic">'+I.play+'</span><span class="lb">Ascolta</span></button><button class="sm bQuiz" aria-label="Vai al quiz"><span class="ic">'+I.quiz+'</span><span>Quiz</span></button>';
+box.innerHTML='<button class="sm bRip" aria-label="Ripeti la lezione"><span class="ic">'+I.rip+'</span><span>Ripeti</span></button><button class="main bPlay" aria-label="Ascolta la lezione"><span class="ic">'+I.play+'</span><span class="lb">Ascolta</span></button><span class="sm" aria-hidden="true" style="visibility:hidden"><span class="ic"></span><span>Ripeti</span></span>';
 const [R,P,Q]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');const C=()=>window.courseAPI;
 const stopAllVoice=()=>{window.appVoice&&window.appVoice.stop();C()&&C().stop();try{speechSynthesis.cancel()}catch(e){}};
 const paint=()=>{const on=!!(C()&&C().isPlaying&&C().isPlaying());P.classList.toggle('on',on);P.querySelector('.ic').innerHTML=on?I.stop:I.play;P.querySelector('.lb').textContent=on?'Ferma':'Ascolta';P.setAttribute('aria-label',on?'Ferma la lezione':'Ascolta la lezione')};
 P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){stopAllVoice()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
 R.onclick=()=>{const b=st();if(b&&!b.classList.contains('on')){b.click();return}C()&&C().repeat();setTimeout(paint,150)};
-Q.onclick=()=>{stopAllVoice();if(typeof show==='function')show('quiz');setTimeout(paint,150)};
+if(Q)Q.onclick=()=>{stopAllVoice();if(typeof show==='function')show('quiz');setTimeout(paint,150)};
 setInterval(paint,600);paint();
 })();
 </script>
