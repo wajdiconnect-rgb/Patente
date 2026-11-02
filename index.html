@@ -746,16 +746,16 @@ body.night #guida .lessoncontrols.lez3 .main .ic{background:#101b25;border-color
 </style>
 <script id="bottoniLezioneScript">
 (function(){const box=document.querySelector('#guida .lessonfeature .lessoncontrols');if(!box)return;box.classList.add('lez3');
-const I={play:'<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z" fill="#2b3640"/></svg>',
-stop:'<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="#fff"/></svg>',
-rip:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
+const I={play:'<svg viewBox="0 0 24 24"><path d="M8.5 5.6v12.8a1 1 0 0 0 1.5.86l10.2-6.4a1 1 0 0 0 0-1.72L10 4.74a1 1 0 0 0-1.5.86z" fill="#fff"/></svg>',
+stop:'<svg viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.8" height="14" rx="1.4" fill="#fff"/><rect x="13.7" y="5" width="3.8" height="14" rx="1.4" fill="#fff"/></svg>',
+rip:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.2v4.6h4.6"/></svg>',
 quiz:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5l2.2 2.2L16 9"/><rect x="3.5" y="3.5" width="17" height="17" rx="4"/></svg>'};
 box.innerHTML='<button class="sm bRip" aria-label="Ripeti la lezione"><span class="ic">'+I.rip+'</span><span>Ripeti</span></button><button class="main bPlay" aria-label="Ascolta la lezione"><span class="ic">'+I.play+'</span><span class="lb">Ascolta</span></button><span class="sm" aria-hidden="true" style="visibility:hidden"><span class="ic"></span><span>Ripeti</span></span>';
 const [R,P,Q]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');const C=()=>window.courseAPI;
 const stopAllVoice=()=>{window.appVoice&&window.appVoice.stop();C()&&C().stop();try{speechSynthesis.cancel()}catch(e){}};
-const paint=()=>{const on=!!(C()&&C().isPlaying&&C().isPlaying());P.classList.toggle('on',on);P.querySelector('.ic').innerHTML=on?I.stop:I.play;P.querySelector('.lb').textContent=on?'Ferma':'Ascolta';P.setAttribute('aria-label',on?'Ferma la lezione':'Ascolta la lezione')};
-P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){stopAllVoice()}else if(document.body.classList.contains('casa')){try{speechSynthesis.speak(new SpeechSynthesisUtterance(' '))}catch(e){}C()&&C().resume()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
-R.onclick=()=>{const b=st();if(b&&!b.classList.contains('on')){b.click();return}C()&&C().repeat();setTimeout(paint,150)};
+const paint=()=>{const on=!!(C()&&C().isPlaying&&C().isPlaying());P.classList.toggle('on',on);P.querySelector('.ic').innerHTML=on?I.stop:I.play;P.querySelector('.lb').textContent=on?'Pausa':'Ascolta';P.setAttribute('aria-label',on?'Metti in pausa la lezione':'Ascolta la lezione')};
+P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){window.appVoice&&window.appVoice.stop();C().pause()}else if(document.body.classList.contains('casa')){try{speechSynthesis.speak(new SpeechSynthesisUtterance(' '))}catch(e){}C()&&C().resume()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
+R.onclick=()=>{try{speechSynthesis.speak(new SpeechSynthesisUtterance(' '))}catch(e){}window.appVoice&&window.appVoice.stop();C()&&C().repeat();setTimeout(paint,150)};R.setAttribute('aria-label','Ripeti la lezione dall\'inizio');
 if(Q)Q.onclick=()=>{stopAllVoice();if(typeof show==='function')show('quiz');setTimeout(paint,150)};
 setInterval(paint,600);paint();
 })();
@@ -848,7 +848,18 @@ window.addEventListener('orientationchange',r);try{screen.orientation?.addEventL
 body.night .qz .vf button.right{background:#12392f;color:#bdeed8}
 body.night .qz .vf button.wrong{background:#3a1d1f;color:#f3c6c2}
 body.night .qz .timer.low{background:#3a1d1f;color:#f3c6c2;border-color:#6b2f2c}
-@media (orientation:landscape) and (max-height:560px){.qz .play{display:grid;grid-template-columns:46% 1fr;gap:14px;align-items:start}.qz .play .photo{max-height:68dvh}.qz .play .qtext{margin-top:0}}
+.qz .bigBtn.lphoto{background:linear-gradient(150deg,#5b6873,#3a454e)}
+.qz .catTag{margin:-4px 0 8px;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink2)}
+.qz .photo.fig{background:#fff;object-fit:contain;max-height:34dvh;padding:8px}
+.qz .play.noimg .qtext{font-size:21px;margin-top:6px}
+.qz .errItem.noimg{grid-template-columns:1fr}
+.qz .errItem img.fig{object-fit:contain;background:#fff}
+.qz .cats{display:grid;grid-template-columns:1fr;gap:6px}
+.qz .catBtn{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surf2);color:var(--ink);border-radius:12px;padding:11px 12px;font-size:14px;font-weight:700;text-align:left}
+.qz .catBtn small{color:var(--ink2);font-weight:600;white-space:nowrap}
+.qz .wIc{width:58px;height:40px;border-radius:8px;background:var(--surf2);display:grid;place-items:center;color:var(--ink2)}.qz .wIc svg{width:22px;height:22px}
+.qz .src{margin:14px 4px 0;font-size:11.5px;color:var(--ink2);line-height:1.4}
+@media (orientation:landscape) and (max-height:560px){.qz .play.noimg{display:block}.qz .play{display:grid;grid-template-columns:46% 1fr;gap:14px;align-items:start}.qz .play .photo{max-height:68dvh}.qz .play .qtext{margin-top:0}}
 </style>
 <script id="quiz2">
 (function(){
@@ -858,7 +869,8 @@ const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i
 const SV={exam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M9 3.5h6v3H9z"/><path d="m9 13 2 2 4-4"/></svg>',
  train:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M7 10.5v4.5c0 1.5 2.2 3 5 3s5-1.5 5-3v-4.5"/></svg>',
  spk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
- x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'};
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ photo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>'};
 /* frasi dalle lezioni, senza frasi che dipendono dal contesto */
 const sent=t=>((t[5]||'')+' '+(t[2]||'')+' '+(t[3]||'')).match(/[^.!?]+[.!?]/g)?.map(x=>x.trim()).filter(x=>x.length>35&&x.length<170&&!/^(ricapitoliamo|ripeto|ecco|oggi|lezione|guarda|ascolta|vediamo|allora|bene|anche|e |ma |poi|quindi|per questo|questo|questa|questi|queste|cio|così|insomma|infatti|cosa|primo|secondo|terzo)/i.test(x)&&!/\b(foto|immagine|lezione|oggi|qui|questa volta|come prima|trucco|ricordare|ricorda|immagina|\?)/i.test(x))||[];
 function build(n){const out=[];let pool=shuf(ALL.slice());while(pool.length<n)pool=pool.concat(shuf(ALL.slice()));
@@ -866,10 +878,18 @@ function build(n){const out=[];let pool=shuf(ALL.slice());while(pool.length<n)po
   if(r===1){const ix=ALL.indexOf(t);let o=ALL.filter((x,j)=>x!==t&&x[0]!==t[0]&&Math.abs(j-ix)<=6);if(!o.length)o=ALL.filter(x=>x!==t);const w=o[Math.floor(Math.random()*o.length)];out.push({t,q:'La figura mostra: '+w[0]+'.',a:false,why:'No: questa figura mostra '+t[0]+', non '+w[0]+'.'});return}
   if(r===2){const ss=sent(t);if(ss.length){out.push({t,q:shuf(ss)[0].replace(/[.!?]$/,'')+'.',a:true,why:'È una regola che si studia per '+t[0]+'.'});return}}
   out.push({t,q:'La figura mostra: '+t[0]+'.',a:true,why:'La figura mostra proprio '+t[0]+'.'})});return out}
+/* domande ufficiali (listato ministeriale) */
+let MIN=null,minLoading=null;
+function loadMin(){if(MIN)return Promise.resolve(MIN);if(!minLoading)minLoading=fetch('ministero.json').then(r=>{if(!r.ok)throw new Error('file domande non trovato');return r.json()}).then(j=>{MIN=j;return j}).catch(e=>{minLoading=null;throw e});return minLoading}
+const mq=(c,x)=>({q:x[0],a:!!x[1],img:x[2]?'min/'+x[2]+'.png':'',cat:c.id,catName:c.nome});
+function buildExam(){const cats=MIN.cats;const out=[];const take=c=>{for(let k=0;k<20;k++){const q=mq(c,c.qs[Math.floor(Math.random()*c.qs.length)]);if(!out.some(o=>o.q===q.q)){out.push(q);return}}};
+ cats.forEach(take);shuf(cats.slice().sort((a,b)=>b.qs.length-a.qs.length).slice(0,10)).slice(0,30-cats.length).forEach(take);return shuf(out)}
+function buildMix(){const all=[];MIN.cats.forEach(c=>{shuf(c.qs.slice()).slice(0,2).forEach(x=>all.push(mq(c,x)))});return shuf(all).slice(0,30)}
+function buildCat(id,n){const c=MIN.cats.find(x=>x.id===id);return shuf(c.qs.slice()).slice(0,n).map(x=>mq(c,x))}
 /* statistiche */
 const SK='quiz-stats-v2';let st={km:0,exams:0,passed:0,wrong:{},right:{}};try{Object.assign(st,JSON.parse(localStorage.getItem(SK)||'{}'))}catch(e){}
 const saveSt=()=>{try{localStorage.setItem(SK,JSON.stringify(st))}catch(e){}};
-function mark(t,ok){const k=t[0];if(ok){st.km++;st.right[k]=(st.right[k]||0)+1}else st.wrong[k]=(st.wrong[k]||0)+1;saveSt()}
+function mark(q,ok){const k=q.t?q.t[0]:'arg:'+q.cat;if(!q.t&&q.catName){st.names=st.names||{};st.names[k]=q.catName}if(ok){st.km++;st.right[k]=(st.right[k]||0)+1}else st.wrong[k]=(st.wrong[k]||0)+1;saveSt()}
 /* voce: legge la domanda due volte */
 let voiceOn=true;try{voiceOn=localStorage.getItem('quiz-voice')!=='0'}catch(e){}
 const V=()=>window.appVoice;
@@ -879,53 +899,56 @@ const stopVoice=()=>{try{V()&&V().stop()}catch(e){}};
 function openLesson(t){const i=(window._courseLessons||[]).indexOf(t);stopVoice();if(i>=0&&window._lessonGo)window._lessonGo(i);if(typeof show==='function')show('guida')}
 /* ---------- schermata iniziale ---------- */
 function home(){if(V()&&V().busy)stopVoice();clearInterval(timerIv);mode=null;
- const weak=Object.entries(st.wrong).map(([k,v])=>[k,v-(st.right[k]||0)*0.5]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,4).map(x=>ALL.find(t=>t[0]===x[0])).filter(Boolean);
- box.innerHTML='<div class="qz"><h2>Quiz patente B</h2><p class="sub">Foto, vero o falso, come all\'esame.</p>'+
+ const weak=Object.entries(st.wrong).map(([k,v])=>[k,v-(st.right[k]||0)*0.5]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>{if(k.startsWith('arg:'))return{k,name:(st.names||{})[k]||k.slice(4),cat:k.slice(4)};const t=ALL.find(t=>t[0]===k);return t?{k,name:t[0],t}:null}).filter(Boolean);
+ box.innerHTML='<div class="qz"><h2>Quiz patente B</h2><p class="sub">Domande ufficiali del Ministero, vero o falso, come all\'esame.</p>'+
  '<div class="statRow"><div class="stat"><b>'+st.km+'</b><span>km percorsi<br>(risposte giuste)</span></div><div class="stat"><b>'+st.exams+'</b><span>esami fatti</span></div><div class="stat"><b>'+st.passed+'</b><span>esami superati</span></div></div>'+
- '<button class="bigBtn exam" data-go="exam"><span class="ic">'+SV.exam+'</span><span><b>Simulazione d\'esame</b><small>30 domande · 20 minuti · massimo 3 errori · risultato alla fine</small></span></button>'+
- '<button class="bigBtn train" data-go="train"><span class="ic">'+SV.train+'</span><span><b>Allenamento</b><small>Ti dico subito se è giusto e perché</small></span></button>'+
- (weak.length?'<div class="weak"><h3>Da ripassare (dove sbagli di più)</h3>'+weak.map((t,i)=>'<div class="weakItem"><img src="'+esc(pic(t))+'" alt=""><div>'+esc(t[0])+'<small>'+(st.wrong[t[0]]||0)+' errori</small></div><button class="link" data-les="'+i+'">Apri lezione</button></div>').join('')+'</div>':'')+
- '</div>';
- box.querySelector('[data-go=exam]').onclick=()=>start('exam');box.querySelector('[data-go=train]').onclick=()=>start('train');
- box.querySelectorAll('[data-les]').forEach(b=>b.onclick=()=>openLesson(weak[+b.dataset.les]))}
+ '<button class="bigBtn exam" data-go="exam"><span class="ic">'+SV.exam+'</span><span><b>Simulazione d\'esame</b><small>30 domande ufficiali · 20 minuti · massimo 3 errori</small></span></button>'+
+ '<button class="bigBtn train" data-go="mix"><span class="ic">'+SV.train+'</span><span><b>Allenamento</b><small>Domande ufficiali di tutti gli argomenti, correzione subito</small></span></button>'+
+ '<button class="bigBtn lphoto" data-go="train"><span class="ic">'+SV.photo+'</span><span><b>Quiz con le foto delle lezioni</b><small>I cartelli che hai studiato nelle lezioni</small></span></button>'+
+ (weak.length?'<div class="weak"><h3>Da ripassare (dove sbagli di più)</h3>'+weak.map((w,i)=>'<div class="weakItem">'+(w.t?'<img src="'+esc(pic(w.t))+'" alt="">':'<span class="wIc">'+SV.train+'</span>')+'<div>'+esc(w.name)+'<small>'+(st.wrong[w.k]||0)+' errori</small></div><button class="link" data-wk="'+i+'">'+(w.t?'Apri lezione':'Allenati')+'</button></div>').join('')+'</div>':'')+
+ '<div class="weak"><h3>Allenati per argomento</h3><div class="cats"><p class="sub" style="margin:0">Carico gli argomenti…</p></div></div>'+
+ '<p class="src">Domande: raccolta QuizPatenteB 2023 (licenza MIT), basata sul listato ministeriale della patente B.</p></div>';
+ box.querySelector('[data-go=exam]').onclick=()=>start('exam');box.querySelector('[data-go=mix]').onclick=()=>start('mix');box.querySelector('[data-go=train]').onclick=()=>start('train');
+ box.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{const w=weak[+b.dataset.wk];if(w.t)openLesson(w.t);else start('cat',w.cat)});
+ loadMin().then(m=>{const el=box.querySelector('.cats');if(!el||mode)return;el.innerHTML=m.cats.map((c,i)=>'<button class="catBtn" data-c="'+i+'"><span>'+esc(c.nome)+'</span><small>'+c.qs.length+' domande</small></button>').join('');el.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>start('cat',m.cats[+b.dataset.c].id))}).catch(()=>{const el=box.querySelector('.cats');if(el)el.innerHTML='<p class="sub" style="margin:0">Per le domande ufficiali serve internet. Riprova tra poco.</p>'})}
 /* ---------- quiz ---------- */
 let mode=null,list=[],i=0,ans=[],timerIv=null,tEnd=0,locked=false;
-function start(m){try{window.courseAPI?.pause()}catch(e){}mode=m;list=build(30);i=0;ans=new Array(list.length).fill(null);locked=false;clearInterval(timerIv);
+async function start(m,cat){try{window.courseAPI?.pause()}catch(e){}if(m!=='train'){try{await loadMin()}catch(e){alert('Non riesco a caricare le domande ufficiali. Controlla internet e riprova.');return}}mode=m;list=m==='exam'?buildExam():m==='mix'?buildMix():m==='cat'?buildCat(cat,30):build(30);i=0;ans=new Array(list.length).fill(null);locked=false;clearInterval(timerIv);
  if(m==='exam'){tEnd=Date.now()+20*60*1000;timerIv=setInterval(tick,500)}
- if(voiceOn&&V())V().say(m==='exam'?'Simulazione d\'esame. Trenta domande, venti minuti, massimo tre errori. In bocca al lupo, Gio!':'Allenamento. Ti dico subito se è giusto.',true);
+ if(voiceOn&&V())V().say(m==='cat'?'Allenamento su '+list[0].catName+'.':m==='exam'?'Simulazione d\'esame. Trenta domande, venti minuti, massimo tre errori. In bocca al lupo, Gio!':'Allenamento. Ti dico subito se è giusto.',true);
  draw(true)}
 function tick(){const left=Math.max(0,tEnd-Date.now());const el=box.querySelector('.timer');if(el){const m=Math.floor(left/60000),s=Math.floor(left/1000)%60;el.textContent=m+':'+String(s).padStart(2,'0');el.classList.toggle('low',left<120000)}if(left<=0){clearInterval(timerIv);finish(true)}}
 function draw(speak){const q=list[i];const a=ans[i];
- const dots=list.map((_,k)=>{let c='';if(k===i)c='cur';else if(ans[k]!==null)c=mode==='train'?(ans[k]===list[k].a?'ok':'ko'):'done';return '<i class="'+c+'"></i>'}).join('');
- const showFb=mode==='train'&&a!==null;
+ const dots=list.map((_,k)=>{let c='';if(k===i)c='cur';else if(ans[k]!==null)c=mode!=='exam'?(ans[k]===list[k].a?'ok':'ko'):'done';return '<i class="'+c+'"></i>'}).join('');
+ const showFb=mode!=='exam'&&a!==null;
  box.innerHTML='<div class="qz"><div class="top"><button class="tbtn" data-x title="Esci">'+SV.x+'</button><span class="n">Domanda '+(i+1)+' di '+list.length+'</span>'+(mode==='exam'?'<span class="timer">20:00</span>':'<span class="n" style="font-weight:600;color:var(--ink2)">'+st.km+' km</span>')+'<button class="tbtn'+(voiceOn?'':' off')+'" data-v title="Voce">'+SV.spk+'</button></div>'+
- '<div class="dots">'+dots+'</div><div class="play"><img class="photo" src="'+esc(pic(q.t))+'" alt="Figura: '+esc(q.t[0])+'"><div><p class="qtext">'+esc(q.q)+'</p>'+
+ '<div class="dots">'+dots+'</div>'+(q.catName?'<p class="catTag">'+esc(q.catName)+'</p>':'')+'<div class="play'+(q.t||q.img?'':' noimg')+'">'+(q.t?'<img class="photo" src="'+esc(pic(q.t))+'" alt="Figura: '+esc(q.t[0])+'">':q.img?'<img class="photo fig" src="'+esc(q.img)+'" alt="Figura della domanda">':'')+'<div><p class="qtext">'+esc(q.q)+'</p>'+
  '<div class="vf"><button data-a="1">VERO</button><button data-a="0">FALSO</button></div>'+
- (showFb?'<div class="fb'+(a===q.a?'':' ko')+'">'+(a===q.a?'✓ Giusto. ':'✗ Sbagliato: la risposta è '+(q.a?'VERO':'FALSO')+'. ')+esc(q.why)+(a!==q.a?'<div style="margin-top:8px"><button class="link" data-open>Apri la lezione: '+esc(q.t[0])+'</button></div>':'')+'</div>':'')+
+ (showFb?'<div class="fb'+(a===q.a?'':' ko')+'">'+(a===q.a?'✓ Giusto. ':'✗ Sbagliato: la risposta è '+(q.a?'VERO':'FALSO')+'. ')+esc(q.why||'')+(a!==q.a&&q.t?'<div style="margin-top:8px"><button class="link" data-open>Apri la lezione: '+esc(q.t[0])+'</button></div>':'')+'</div>':'')+
  '<div class="navRow">'+(i>0?'<button data-prev>← Indietro</button>':'')+(i<list.length-1?'<button class="main" data-next>Avanti →</button>':'<button class="main" data-end>'+(mode==='exam'?'Consegna':'Fine')+'</button>')+'</div>'+
  (mode==='exam'&&i<list.length-1?'<div class="navRow"><button data-end>Consegna l\'esame</button></div>':'')+'</div></div></div>';
- const bv=box.querySelectorAll('.vf button');bv.forEach(b=>{const v=b.dataset.a==='1';if(a!==null){if(mode==='train'){if(v===q.a)b.classList.add('right');else if(v===a)b.classList.add('wrong')}else if(v===a)b.classList.add('sel')}
+ const bv=box.querySelectorAll('.vf button');bv.forEach(b=>{const v=b.dataset.a==='1';if(a!==null){if(mode!=='exam'){if(v===q.a)b.classList.add('right');else if(v===a)b.classList.add('wrong')}else if(v===a)b.classList.add('sel')}
   b.onclick=()=>choose(v)});
  box.querySelector('[data-x]').onclick=()=>{if(mode==='exam'&&!confirm('Vuoi uscire dall\'esame? Le risposte andranno perse.'))return;home()};
  box.querySelector('[data-v]').onclick=()=>{voiceOn=!voiceOn;try{localStorage.setItem('quiz-voice',voiceOn?'1':'0')}catch(e){}if(!voiceOn)stopVoice();draw(voiceOn)};
  box.querySelector('[data-prev]')&&(box.querySelector('[data-prev]').onclick=()=>{i--;draw(true)});
  box.querySelector('[data-next]')&&(box.querySelector('[data-next]').onclick=()=>{i++;draw(true)});
  box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>{if(mode==='exam'){const miss=ans.filter(x=>x===null).length;if(miss&&!confirm('Hai ancora '+miss+' domande senza risposta. Vuoi consegnare lo stesso?'))return}finish(false)});
- box.querySelector('[data-open]')&&(box.querySelector('[data-open]').onclick=()=>openLesson(q.t));
+ box.querySelector('[data-open]')&&q.t&&(box.querySelector('[data-open]').onclick=()=>openLesson(q.t));
  if(mode==='exam')tick();
  if(speak&&a===null)readQ(q,i+1);
  box.closest('.view')?.scrollTo?.(0,0)}
-function choose(v){const q=list[i];if(mode==='train'){if(ans[i]!==null)return;ans[i]=v;const ok=v===q.a;mark(q.t,ok);draw(false);
-  sayFb(ok?['Giusto, bravo!','Esatto!','Perfetto, Gio!','Sì, giusto!'][i%4]:'Non proprio. La risposta giusta è '+(q.a?'vero':'falso')+'. '+q.why);return}
+function choose(v){const q=list[i];if(mode!=='exam'){if(ans[i]!==null)return;ans[i]=v;const ok=v===q.a;mark(q,ok);draw(false);
+  sayFb(ok?['Giusto, bravo!','Esatto!','Perfetto, Gio!','Sì, giusto!'][i%4]:'Non proprio. La risposta giusta è '+(q.a?'vero':'falso')+'. '+(q.why||''));return}
  ans[i]=v;draw(false);if(i<list.length-1)setTimeout(()=>{if(mode==='exam'&&ans[i]===v){i++;draw(true)}},450)}
-function finish(timeUp){clearInterval(timerIv);const wrong=[];let err=0;list.forEach((q,k)=>{const a=ans[k];const ok=a===q.a;if(!ok){err++;wrong.push([q,a])}if(mode==='exam'&&a!==null)mark(q.t,ok)});
+function finish(timeUp){clearInterval(timerIv);const wrong=[];let err=0;list.forEach((q,k)=>{const a=ans[k];const ok=a===q.a;if(!ok){err++;wrong.push([q,a])}if(mode==='exam'&&a!==null)mark(q,ok)});
  const pass=err<=3;if(mode==='exam'){st.exams++;if(pass)st.passed++;saveSt()}
  const used=mode==='exam'?Math.min(20*60,Math.round((20*60*1000-(tEnd-Date.now()))/1000)):0;
  box.innerHTML='<div class="qz"><div class="result '+(pass?'pass':'fail')+'"><b>'+(pass?'SUPERATO':'NON SUPERATO')+'</b><span>'+err+(err===1?' errore':' errori')+' su '+list.length+(mode==='exam'?' · tempo '+Math.floor(used/60)+' min '+(used%60)+' s':'')+(timeUp?' · tempo scaduto':'')+'</span></div>'+
- (wrong.length?'<h3 style="margin:4px 2px 10px;color:var(--ink)">Le domande sbagliate</h3>'+wrong.map(([q,a],k)=>'<div class="errItem"><img src="'+esc(pic(q.t))+'" alt=""><div><p>'+esc(q.q)+'</p><small>Hai risposto: '+(a===null?'nessuna risposta':a?'VERO':'FALSO')+' · Giusta: '+(q.a?'VERO':'FALSO')+'<br>'+esc(q.why)+'</small><button class="link" data-w="'+k+'">Apri la lezione</button></div></div>').join(''):'<p class="sub" style="text-align:center">Nessun errore. Bravissimo!</p>')+
- '<div class="navRow"><button data-home>Torna al quiz</button><button class="main" data-again>'+(mode==='exam'?'Nuovo esame':'Nuovo allenamento')+'</button></div></div>';
+ (wrong.length?'<h3 style="margin:4px 2px 10px;color:var(--ink)">Le domande sbagliate</h3>'+wrong.map(([q,a],k)=>'<div class="errItem'+(q.t||q.img?'':' noimg')+'">'+(q.t?'<img src="'+esc(pic(q.t))+'" alt="">':q.img?'<img class="fig" src="'+esc(q.img)+'" alt="">':'')+'<div><p>'+esc(q.q)+'</p><small>Hai risposto: '+(a===null?'nessuna risposta':a?'VERO':'FALSO')+' · Giusta: '+(q.a?'VERO':'FALSO')+'<br>'+esc(q.why||q.catName||'')+'</small>'+(q.t?'<button class="link" data-w="'+k+'">Apri la lezione</button>':'')+'</div></div>').join(''):'<p class="sub" style="text-align:center">Nessun errore. Bravissimo!</p>')+
+ '<div class="navRow"><button data-home>Torna al quiz</button><button class="main" data-again>'+(mode==='exam'?'Nuovo esame':'Altre 30 domande')+'</button></div></div>';
  box.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>openLesson(wrong[+b.dataset.w][0].t));
- box.querySelector('[data-home]').onclick=home;const m=mode;box.querySelector('[data-again]').onclick=()=>start(m);
+ box.querySelector('[data-home]').onclick=home;const m=mode,lastCat=list[0]&&list[0].cat;box.querySelector('[data-again]').onclick=()=>start(m,lastCat);
  sayFb(pass?'Esame superato con '+err+(err===1?' errore':' errori')+'. Bravissimo, Gio!':'Questa volta non è superato: '+err+' errori. Non ti preoccupare, ripassa le lezioni che ti mostro e riprova.');
  box.closest('.view')?.scrollTo?.(0,0)}
 /* compatibilità con i vecchi comandi */
@@ -1023,6 +1046,17 @@ body.casa .casaText{display:block}
 .seenSign b{display:none}
 .seenSign:not(:has(img[style*="block"])){display:none}
 #micBtn,#micBtn.show{display:none!important}
+/* bottoni sotto la foto, stile Apple: Ascolta rosso grande, Ripeti nero */
+#guida .lessoncontrols.lez3{gap:22px!important;align-items:flex-end!important}
+#guida .lessoncontrols.lez3 .main .ic,body.night #guida .lessoncontrols.lez3 .main .ic{width:62px!important;height:62px!important;background:linear-gradient(180deg,#ff4a5e,#e8253b)!important;border:0!important;box-shadow:0 8px 20px #e8253b55,inset 0 1px 0 #ffffff40!important;transition:transform .15s,box-shadow .2s}
+#guida .lessoncontrols.lez3 .main.on .ic{background:linear-gradient(180deg,#ff4a5e,#e8253b)!important;box-shadow:0 0 0 6px #e8253b22,0 8px 20px #e8253b55!important}
+#guida .lessoncontrols.lez3 .main svg{width:28px!important;height:28px!important}
+#guida .lessoncontrols.lez3 .main{color:#1c1c1e!important;font-weight:700!important;font-size:12px!important}
+#guida .lessoncontrols.lez3 .sm .ic,body.night #guida .lessoncontrols.lez3 .sm .ic{width:46px!important;height:46px!important;background:linear-gradient(180deg,#3a3a3c,#1c1c1e)!important;border:0!important;box-shadow:0 6px 14px #0004,inset 0 1px 0 #ffffff26!important}
+#guida .lessoncontrols.lez3 .sm svg{width:21px!important;height:21px!important}
+#guida .lessoncontrols.lez3 .sm{color:#3a3a3c!important;font-size:12px!important;font-weight:600!important}
+body.night #guida .lessoncontrols.lez3 .sm .ic{background:linear-gradient(180deg,#48484a,#2c2c2e)!important;box-shadow:0 0 0 1px #ffffff22,0 6px 14px #0006!important}
+body.night #guida .lessoncontrols.lez3 .main,body.night #guida .lessoncontrols.lez3 .sm{color:#e8eef4!important}
 body.night #guida .lessoncontrols.lez3 svg [stroke]:not([stroke="none"]),body.night #guida .lessoncontrols.lez3 svg{stroke:#e8eef4}
 body.night #guida .lessoncontrols.lez3 svg [fill]:not([fill="none"]){fill:#e8eef4}
 @media (orientation:landscape) and (max-height:560px){#guida .learningHalf .status{display:none}#guida .learningHalf{padding-bottom:64px}}
