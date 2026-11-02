@@ -533,15 +533,22 @@ async function askAI(question,withPhoto){if(!aiKey()){micLabel('🤖 Manca la ch
   const ans=await claude(msgs,SYS_TALK(),400);chat.push({role:'assistant',content:ans});const box=$('aiAnswer');if(box)box.textContent=ans;micLabel('🤖 '+ans);Voice.say(ans,true,true)}
  catch(e){chat.pop();micLabel('🤖 Non riesco a rispondere: '+e.message);Voice.say('Non riesco a rispondere: '+e.message+'.',true)}finally{window.aiBusy=false}}
 window.askAI=askAI;window.aiCall=(m,sys,max,json)=>claude(m,sys,max,json);window.aiReady=()=>!!aiKey();
-let signBusy=false,lastSign=0;let seenSign={};try{seenSign=JSON.parse(localStorage.getItem('ppi-signs-said')||'{}')}catch(e){}
+let signBusy=false,lastSign=0;let seenSign={};try{const d=JSON.parse(localStorage.getItem('ppi-signs-said2')||'{}');const now=Date.now();for(const k in d)if(now-d[k]<1800000)seenSign[k]=d[k]}catch(e){}
 const SYS_SIGN='Guardi le foto della telecamera di un\'auto in Italia per un\'app di scuola guida. Rispondi SOLO con JSON valido, senza altro testo.';
-setInterval(async()=>{if(!started||!aiKey()||!aiSignsOn()||signBusy||document.hidden||window.aiBusy)return;const now=Date.now();if(now-lastSign<120000)return;
- const img=frame(640);if(!img)return;signBusy=true;lastSign=now;
- try{const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Guarda i cartelli stradali verticali vicini e chiaramente leggibili in questa foto. Scegli AL MASSIMO UNO: solo se è un cartello importante e difficile per l\'esame di teoria della patente B italiana (per esempio precedenze, divieti particolari, obblighi, pericoli meno comuni, pannelli integrativi). Ignora i cartelli banali o molto comuni (nomi di vie, indicazioni di direzione, pubblicità, parcheggio semplice, limite 50 in città), quelli lontani, sfocati o incerti, e ignora le auto. Formato: {"cartelli":[{"nome":"nome ufficiale italiano del cartello","spiegazione":"due o tre frasi semplici, come un istruttore: cosa significa e cosa deve fare il conducente, e perché all\'esame è importante"}]}. Se non c\'è un cartello così: {"cartelli":[]}'}]}],SYS_SIGN,300,true);
-  const m=txt.match(/\{[\s\S]*\}/);const j=m?JSON.parse(m[0]):{cartelli:[]};
-  for(const c of (j.cartelli||[]).slice(0,1)){if(!c||!c.nome)continue;const k=norm(c.nome);if(seenSign[k])continue;seenSign[k]=now;try{localStorage.setItem('ppi-signs-said',JSON.stringify(seenSign))}catch(e){}
-   Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'. '+(c.spiegazione||''))}}
- catch(e){if(/chiave|credito|limite/.test(e.message))msg('Lettura cartelli: '+e.message)}finally{signBusy=false}},1000);
+const camTag=t=>{const l=document.querySelector('.camlabel');if(l)l.textContent='● LIVE'+(t?' · '+t:'')};
+async function readSign(manual){if(signBusy)return;if(!aiKey()){camTag('manca chiave Gemini');if(manual)Voice.say('Per leggere i cartelli mi serve la chiave gratuita di Gemini. Inseriscila nella pagina Voce.',true);return}
+ if(!camLive()){if(manual)startCamera();return}
+ const img=frame(800);if(!img){camTag('telecamera in avvio');return}signBusy=true;lastSign=Date.now();camTag('👁 guardo…');
+ try{const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Questa è la foto dalla telecamera di un\'auto in Italia. C\'è un segnale stradale (cartello verticale, semaforo, segnale orizzontale importante come lo STOP a terra, o un agente che fa segnali) ben visibile e leggibile? Scegli il più importante, UNO solo. Ignora nomi delle vie, pubblicità, insegne dei negozi, cartelli troppo lontani, sfocati o di cui non sei sicuro. Formato: {"cartelli":[{"nome":"nome ufficiale italiano del segnale","spiegazione":"due o tre frasi semplici, come un istruttore di scuola guida: cosa significa, cosa deve fare il conducente adesso, e cosa chiedono all\'esame della patente"}]}. Se non c\'è un segnale così: {"cartelli":[]}'}]}],SYS_SIGN,400,true);
+  const m=txt.match(/\{[\s\S]*\}/);const j=m?JSON.parse(m[0]):{cartelli:[]};const c=(j.cartelli||[])[0];
+  if(!c||!c.nome){camTag('nessun cartello');if(manual)Voice.say('Adesso non vedo cartelli chiari davanti a te.',true);return}
+  const k=norm(c.nome);if(!manual&&seenSign[k]){camTag('già spiegato: '+c.nome);return}
+  seenSign[k]=Date.now();try{localStorage.setItem('ppi-signs-said2',JSON.stringify(seenSign))}catch(e){}
+  camTag('✅ '+c.nome);Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'.');String(c.spiegazione||'').match(/[^.!?]+[.!?]?/g)?.map(x=>x.trim()).filter(Boolean).forEach(x=>Voice.say(x))}
+ catch(e){camTag('⚠️ '+(e.message||'errore'));if(manual)Voice.say('Non riesco a leggere il cartello: '+(e.message||'errore')+'.',true)}finally{signBusy=false}}
+window.readSign=readSign;
+setInterval(()=>{if(!aiSignsOn()||signBusy||document.hidden||window.aiBusy||(window.VQ&&window.VQ.active)||!camLive())return;if(Date.now()-lastSign<25000)return;readSign(false)},2000);
+setTimeout(()=>{const cb=document.querySelector('#guida .camera');if(cb)cb.addEventListener('click',e=>{if(e.target.closest('button'))return;unlockAudio();readSign(true)})},500);
 // impostazioni nella pagina Voce
 (function(){const v=$('voce')?.querySelector('.content');if(!v)return;const box=document.createElement('div');box.className='note';
  box.innerHTML='<b>🤖 Intelligenza artificiale (Gemini, gratis)</b><p style="margin:6px 0">Risponde alle tue domande a voce e legge i cartelli con la telecamera. Crea la chiave gratuita su <b>aistudio.google.com</b> → <b>Get API key</b> (basta l\'account Google, niente carta). La chiave resta solo su questo telefono. La versione gratuita ha un numero limitato di richieste al giorno: se finisce, l\'app si ferma un po\' e poi riprova. Funziona anche con una chiave Claude (sk-ant-…).</p>'+
