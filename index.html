@@ -736,4 +736,22 @@ setInterval(()=>bar.classList.toggle('on',!!VQ.active),400);
 const p=document.getElementById('micPref');if(p){const row=p.closest('p');if(row)row.remove()}
 })();
 </script>
+<style id="orizzontale">
+/* Telefono girato in orizzontale: tutto lo schermo, mappa a sinistra e lezione a destra */
+@media (orientation:landscape) and (max-height:560px){
+ .shell:has(#guida.active)>header,body.land-guida header{display:none!important}
+ .shell:has(#guida.active) .nav,body.land-guida .nav{display:none!important}
+ #guida.view.active{flex-direction:row!important;height:100dvh!important;max-height:100dvh!important;flex:1 1 auto!important;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);background:#fff}
+ #guida .mapwrap,#guida .mapwrap.route-active,#guida .mapwrap.route-active.expanded{width:58%!important;height:100%!important;max-height:none!important;flex:0 0 58%!important;border-radius:0!important}
+ #guida .learningHalf{width:42%;height:100%;flex:0 0 42%;padding-bottom:env(safe-area-inset-bottom);border-left:1px solid #dce4f0}
+ #guida .learningHalf .sectiontitle{display:none}
+ #guida .learningHalf .lessonfeature{margin:6px 8px 10px;padding:8px}
+ #guida .learningHalf .lessonfeature>img,#guida .learningHalf .lessonfeature img{max-height:calc(100dvh - 150px)!important;width:100%;object-fit:contain}
+ #guida .mapwrap .camera{width:38%!important;height:clamp(70px,30dvh,130px)!important}
+ #guida .mapwrap .destinationPanel{right:8px!important}
+}
+</style>
+<script id="orizzontaleJS">(function(){const f=()=>{const g=document.getElementById('guida');document.body.classList.toggle('land-guida',!!(g&&g.classList.contains('active')))};f();setInterval(f,700);
+const r=()=>setTimeout(()=>{try{window.map?.invalidateSize?.(true)}catch(e){}window.dispatchEvent(new Event('resize'))},350);
+window.addEventListener('orientationchange',r);try{screen.orientation?.addEventListener('change',r)}catch(e){}})();</script>
 </body></html>
