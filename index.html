@@ -526,7 +526,7 @@ async function claudeAPI(messages,system,maxTokens){const key=aiKey();if(!key)th
   if(r.status===400){const t=await r.text();if(/credit|balance/i.test(t))throw new Error('credito finito sul tuo account Anthropic');lastErr=new Error('errore 400')}
   else lastErr=new Error('errore '+r.status)}throw lastErr||new Error('servizio non disponibile')}
 function frame(w){const v=document.getElementById('video');if(!v||!v.srcObject||!v.videoWidth)return null;const c=document.createElement('canvas');c.width=w;c.height=Math.round(v.videoHeight*w/v.videoWidth);c.getContext('2d').drawImage(v,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7).split(',')[1]}
-const SYS_TALK=()=>'Sei l\'istruttore di scuola guida dentro l\'app Impara mentre guidi. Parli con Gio, che studia la teoria della patente B italiana e spesso sta guidando. Rispondi in italiano semplice, come si parla a voce: frasi brevi, al massimo 4 frasi, niente elenchi, niente simboli, niente markdown. Sul codice della strada sii preciso; se non sei sicuro, dillo. Non dire mai di toccare il telefono mentre guida.'+(window.courseAPI?.current?' Lezione in corso: '+window.courseAPI.current()+'.':'')+(limit?' Limite della strada attuale: '+limit+' km/h.':'')+(route?' Navigazione attiva verso '+destName+'.':'');
+const SYS_TALK=()=>'Sei l\'istruttore di scuola guida dentro l\'app Impara mentre guidi. Parli con Gio, che studia la teoria della patente B italiana.'+(document.body.classList.contains('casa')?' Adesso è a casa, non sta guidando: non parlare di guida, volante o telefono.':' Spesso sta guidando.')+' Rispondi in italiano semplice, come si parla a voce: frasi brevi, al massimo 4 frasi, niente elenchi, niente simboli, niente markdown. Sul codice della strada sii preciso; se non sei sicuro, dillo. Non dire mai di toccare il telefono mentre guida.'+(window.courseAPI?.current?' Lezione in corso: '+window.courseAPI.current()+'.':'')+(limit?' Limite della strada attuale: '+limit+' km/h.':'')+(route?' Navigazione attiva verso '+destName+'.':'');
 async function askAI(question,withPhoto){if(!aiKey()){micLabel('🤖 Manca la chiave Gemini: inseriscila nella pagina Voce');Voice.say('Per risponderti mi serve la chiave gratuita di Gemini. Quando sei fermo, inseriscila nella pagina Voce.',true);return}
  window.aiBusy=true;micLabel('🤖 Ci penso…');try{const photo=(withPhoto||/cartell|vedi|davanti|questo segnale/i.test(question))?frame(768):null;
   const content=photo?[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:photo}},{type:'text',text:question+' (foto dalla telecamera dell\'auto in questo momento)'}]:question;
@@ -590,7 +590,7 @@ document.addEventListener('visibilitychange',()=>{if(!started)return;if(document
 
 /* ---------- TASTO AVVIA: un tocco e parte tutto ---------- */
 let started=false;
-async function startAll(fromNav){if(started)return;started=true;unlockAudio();keepAwake();
+async function startAll(fromNav){if(started)return;if(document.body.classList.contains('casa')&&!fromNav){window.courseAPI?.resume();return}started=true;unlockAudio();keepAwake();
  bigStart.classList.add('on');bigStart.innerHTML='●';bigStart.title='Tocca per fermare tutto';
  if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');speechSynthesis.speak(u)}
  startMic();const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
@@ -753,7 +753,7 @@ box.innerHTML='<button class="sm bRip" aria-label="Ripeti la lezione"><span clas
 const [R,P,Q]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');const C=()=>window.courseAPI;
 const stopAllVoice=()=>{window.appVoice&&window.appVoice.stop();C()&&C().stop();try{speechSynthesis.cancel()}catch(e){}};
 const paint=()=>{const on=!!(C()&&C().isPlaying&&C().isPlaying());P.classList.toggle('on',on);P.querySelector('.ic').innerHTML=on?I.stop:I.play;P.querySelector('.lb').textContent=on?'Ferma':'Ascolta';P.setAttribute('aria-label',on?'Ferma la lezione':'Ascolta la lezione')};
-P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){stopAllVoice()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
+P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){stopAllVoice()}else if(document.body.classList.contains('casa')){try{speechSynthesis.speak(new SpeechSynthesisUtterance(' '))}catch(e){}C()&&C().resume()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
 R.onclick=()=>{const b=st();if(b&&!b.classList.contains('on')){b.click();return}C()&&C().repeat();setTimeout(paint,150)};
 if(Q)Q.onclick=()=>{stopAllVoice();if(typeof show==='function')show('quiz');setTimeout(paint,150)};
 setInterval(paint,600);paint();
