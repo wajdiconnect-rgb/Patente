@@ -395,8 +395,8 @@ setInterval(()=>{if(!micOn||!started||document.hidden)return;if(appSilent()){if(
 let lastRecEnd=0;
 function spawnRec(){let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');micOn=false;return}rec=r;
  r.lang='it-IT';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;let last='',done=false,timer=null;
- const fire=()=>{if(done||!last.trim())return;done=true;command(last)};
- r.onstart=()=>micLabel('🎙️ Ti ascolto');
+ const fire=()=>{if(done||!last.trim())return;done=true;if(window.directAI){window.directAI=false;const n=norm(last);const w=n.split(' ').length;if(w>=2&&!/^(ferma|fermati|basta|stop|avanti|indietro|ripeti|continua|riprendi|pausa|cambia (la )?voce|termina)\b/.test(n)){askAI(last);return}}command(last)};
+ r.onstart=()=>{micLabel('🎙️ Ti ascolto');if(window.directAI&&actx){try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.16)}catch(e){}}};
  r.onresult=e=>{userTalkAt=Date.now();let txt='';for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;last=txt;clearTimeout(timer);
   if(e.results[e.results.length-1].isFinal)fire();else timer=setTimeout(()=>{fire();try{r.stop()}catch(_){}},1400)};
  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){micOn=false;micLabel('🎙️ Microfono bloccato: Impostazioni › Generali › Tastiera › attiva Dettatura, poi consenti il microfono a Safari')}};
@@ -519,8 +519,8 @@ async function startAll(fromNav){if(started)return;started=true;unlockAudio();ke
 function stopAll(){started=false;bigStart.classList.remove('on');bigStart.innerHTML='▶ AVVIA';try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}Voice.stop();window.courseAPI?.stop();stopMic();stopGPS();endRoute(true);hide3D();try{wakeLock?.release()}catch(e){}
  if(userDot&&LM()){LM().removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
 const micBtn=document.createElement('button');micBtn.className='micBtn';micBtn.id='micBtn';micBtn.innerHTML='🎙️';micBtn.title='Tocca e parla';wrap.appendChild(micBtn);
-micBtn.addEventListener('click',()=>{unlockAudio();if(!started){startAll(false)}if(!SR){micLabel('🎙️ Microfono non disponibile: usa Safari aggiornato');return}Voice.stop();window.courseAPI?.hold();try{speechSynthesis.cancel()}catch(e){}window.micClose();micOn=true;userTalkAt=Date.now()+4000;spawnRec();setTimeout(()=>{if(!rec)window.courseAPI?.release()},9000)});
-const vBtn=document.createElement('button');vBtn.className='voiceBtn';vBtn.innerHTML='🔊 Cambia voce';wrap.appendChild(vBtn);vBtn.addEventListener('click',()=>{unlockAudio();window.cambiaVoce()});
+micBtn.addEventListener('click',()=>{unlockAudio();if(!started){startAll(false)}if(!SR){micLabel('🎙️ Microfono non disponibile: usa Safari aggiornato');return}Voice.stop();window.courseAPI?.hold();try{speechSynthesis.cancel()}catch(e){}window.micClose();micOn=true;window.directAI=true;userTalkAt=Date.now()+4000;spawnRec();setTimeout(()=>{if(!rec)window.courseAPI?.release()},9000)});
+const vBtn=document.createElement('button');vBtn.className='voiceBtn';vBtn.innerHTML='🔊';vBtn.title='Cambia voce';wrap.appendChild(vBtn);vBtn.addEventListener('click',()=>{unlockAudio();window.cambiaVoce()});
 setInterval(()=>{if(!started){heard.style.display='none';return}if(!heard.textContent||heard.style.display==='none'){micLabel(rec?'🎙️ Ti ascolto':'🔊 Sto parlando · tocca 🎙️ per farmi una domanda')}},1500);
 bigStart.addEventListener('click',()=>{if(started)stopAll();else startAll(false)});
 window.addEventListener('load',refresh);setTimeout(refresh,500);
@@ -573,8 +573,8 @@ html,body,.shell{max-width:100vw;overflow-x:hidden}
 #guida .maptop{justify-content:flex-end!important}#guida .maptop .camera{margin-left:auto}
 .bigStart.on{width:44px!important;height:44px!important;font-size:18px!important;border:3px solid #e0262f}
 .micBtn{position:absolute;z-index:905;left:60px;bottom:64px;width:44px;height:44px;border-radius:50%;border:0;background:#0a8a5f;color:#fff;font-size:21px;box-shadow:0 3px 12px #0006}
-.voiceBtn{position:absolute;z-index:905;right:8px;bottom:64px;border:0;border-radius:14px;background:#fff;color:#123;font-weight:700;font-size:13px;padding:8px 11px;box-shadow:0 3px 12px #0004}
-.heardChip{left:112px!important;right:120px;bottom:66px!important;max-width:none!important;font-size:14px!important;font-weight:700;color:#0d2236!important;background:#fff!important;border:2px solid #0a8a5f;border-radius:12px!important;padding:6px 10px!important;white-space:normal!important;max-height:70px;overflow:hidden;line-height:1.25;box-shadow:0 3px 12px #0004}
+.voiceBtn{position:absolute;z-index:905;left:112px;bottom:64px;border:0;border-radius:50%;width:44px;height:44px;background:#fff;color:#123;font-size:20px;padding:0;box-shadow:0 3px 12px #0004}
+.heardChip{display:none!important;left:112px!important;right:120px;bottom:66px!important;max-width:none!important;font-size:14px!important;font-weight:700;color:#0d2236!important;background:#fff!important;border:2px solid #0a8a5f;border-radius:12px!important;padding:6px 10px!important;white-space:normal!important;max-height:70px;overflow:hidden;line-height:1.25;box-shadow:0 3px 12px #0004}
 body.night .heardChip{background:#101f32!important;color:#fff!important}
-.bigStart:not(.on)~.micBtn{left:104px}
+.bigStart:not(.on)~.micBtn{left:104px}.bigStart:not(.on)~.voiceBtn{left:156px}
 </style></body></html>
