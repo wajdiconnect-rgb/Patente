@@ -78,6 +78,7 @@ const LONG={"Rotatoria": "Oggi parliamo della rotatoria, con calma. La rotatoria
 lessons.forEach(t=>{if(LONG[t[0]])t[5]=LONG[t[0]]});
 try{const have=new Set(lessons.map(t=>t[0].toLowerCase()));(typeof curriculum!=='undefined'?curriculum:[]).forEach(c=>{if(have.has(String(c[0]).toLowerCase()))return;lessons.push([c[0],'',c[2],c[3],'','Oggi parliamo di '+c[0]+'. Lo trovi nel codice della strada, '+String(c[1]).replace(/Art\./g,'articolo').replace(/;/g,',')+'. '+c[2]+' Ripeto, perché è importante: '+c[2]+' Il consiglio dell\'istruttore: '+c[3]+' Ricapitoliamo: '+c[0]+'. '+c[3],null,1])})}catch(e){}
 const PHOTO={"Rotatoria":"rotatoria.jpg","Semaforo rosso":"semaforo_rosso.jpg","Semaforo giallo":"semaforo_giallo.jpg","Passaggi a livello":"pl_barriere.jpg","Pioggia, nebbia e aderenza":"sdrucciolevole.jpg"};lessons.forEach(t=>{if(!t[6]&&PHOTO[t[0]])t[6]=PHOTO[t[0]]});
+for(let i=lessons.length-1;i>=0;i--)if(!lessons[i][6])lessons.splice(i,1);
 const SIGNKEY={"STOP":"stop","Divieto di accesso":"noentry","Senso unico":"oneway","Distanza di sicurezza":"distance"};lessons.forEach(t=>{if(!t[4]&&SIGNKEY[t[0]])t[4]=SIGNKEY[t[0]]});
 function richText(t){if(t[7]!==1)return null;try{return localStorage.getItem('ppi-rich-'+t[0])}catch(e){return null}}
 async function enrich(i){const t=lessons[i];if(!t||t[7]!==1||richText(t)||!window.aiReady||!window.aiReady())return;try{const txt=await window.aiCall([{role:'user',content:'Scrivi una lezione parlata di scuola guida sull\'argomento: "'+t[0]+'" (patente B italiana, codice della strada). Base di partenza: '+t[2]+' '+t[3]+' Parla come un istruttore paziente, frasi brevi e semplici, circa 15 frasi, con un esempio pratico di guida, le regole precise che chiedono all\'esame e una ricapitolazione finale. Solo testo da leggere ad alta voce, niente elenchi né simboli.'}],'Sei un istruttore di scuola guida italiano, preciso sul codice della strada.',900);if(txt&&txt.length>300)try{localStorage.setItem('ppi-rich-'+t[0],txt.replace(/[*#_]/g,''))}catch(e){}}catch(e){}}
@@ -544,9 +545,18 @@ async function readSign(manual){if(signBusy)return;if(!aiKey()){camTag('manca ch
   if(!c||!c.nome){camTag('nessun cartello');if(manual)Voice.say('Adesso non vedo cartelli chiari davanti a te.',true);return}
   const k=norm(c.nome);if(!manual&&seenSign[k]){camTag('già spiegato: '+c.nome);return}
   seenSign[k]=Date.now();try{localStorage.setItem('ppi-signs-said2',JSON.stringify(seenSign))}catch(e){}
-  camTag('✅ '+c.nome);Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'.');String(c.spiegazione||'').match(/[^.!?]+[.!?]?/g)?.map(x=>x.trim()).filter(Boolean).forEach(x=>Voice.say(x))}
+  camTag('✅ '+c.nome);showSignIcon(c.nome);Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'.');String(c.spiegazione||'').match(/[^.!?]+[.!?]?/g)?.map(x=>x.trim()).filter(Boolean).forEach(x=>Voice.say(x))}
  catch(e){camTag('⚠️ '+(e.message||'errore'));if(manual)Voice.say('Non riesco a leggere il cartello: '+(e.message||'errore')+'.',true)}finally{signBusy=false}}
 window.readSign=readSign;
+const sigBox=document.createElement('div');sigBox.className='seenSign';sigBox.innerHTML='<img alt=""><b></b>';document.body.appendChild(sigBox);let sigT=null;
+function signIcon(name){const n=norm(name);const L=window._courseLessons||[];let best=null,bs=0;
+ for(const t of L){if(!t[6]||t[7]===1)continue;const k=norm(t[0]);if(k===n)return t;const w=k.split(' ').filter(x=>x.length>3);if(!w.length)continue;const sc=w.filter(x=>n.includes(x)).length/w.length;if(sc>bs){bs=sc;best=t}}
+ return bs>=0.6?best:null}
+function showSignIcon(name){const t=signIcon(name);const img=sigBox.querySelector('img');
+ if(t&&/\.jpg$/.test(t[6])){img.src=t[6].replace(/\.jpg$/,'_s.png');img.style.display='block';img.onerror=()=>{img.style.display='none'}}else img.style.display='none';
+ sigBox.querySelector('b').textContent=name;sigBox.classList.add('on');clearTimeout(sigT);const t0=Date.now();
+ const hide=()=>{if(Date.now()-t0<6000||Voice.busy){sigT=setTimeout(hide,700);return}sigBox.classList.remove('on')};sigT=setTimeout(hide,1500)}
+window.showSignIcon=showSignIcon;
 setInterval(()=>{if(!aiSignsOn()||signBusy||document.hidden||window.aiBusy||(window.VQ&&window.VQ.active)||!camLive())return;if(Date.now()-lastSign<25000)return;readSign(false)},2000);
 setTimeout(()=>{const cb=document.querySelector('#guida .camera');if(cb)cb.addEventListener('click',e=>{if(e.target.closest('button'))return;unlockAudio();readSign(true)})},500);
 // impostazioni nella pagina Voce
@@ -795,4 +805,11 @@ window.nextQuestion=function(){if(done){list=build();i=0;err=0;render();return}
  i++;render()};
 render();})();
 </script>
+<style id="seenSignCss">
+.seenSign{position:fixed;z-index:4000;top:calc(env(safe-area-inset-top) + 70px);right:12px;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fffffff5;border:3px solid #0a8a5f;border-radius:20px;padding:12px 14px;box-shadow:0 8px 28px #0006;max-width:46vw;opacity:0;transform:scale(.6);pointer-events:none;transition:opacity .3s,transform .3s}
+.seenSign.on{opacity:1;transform:scale(1)}
+.seenSign img{width:clamp(90px,26vw,150px);height:clamp(90px,26vw,150px);object-fit:contain}
+.seenSign b{font-size:15px;line-height:1.2;color:#0d2236;text-align:center}
+body.night .seenSign{background:#101f32f5}body.night .seenSign b{color:#fff}
+</style>
 </body></html>
