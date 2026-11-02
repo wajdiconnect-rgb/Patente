@@ -238,7 +238,10 @@ const roundM=d=>d<60?'pochi metri':d>=1000?(Math.round(d/100)/10).toString().rep
 
 /* ---------- Mappa 3D (vista davanti, come i navigatori) ---------- */
 let ml=null,mlFailed=false,vanMarker=null,poiMarkers=[];
-function loadMapLibre(){return new Promise((res,rej)=>{if(window.maplibregl)return res();const c=document.createElement('link');c.rel='stylesheet';c.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);setTimeout(()=>rej(new Error('timeout')),15000)})}
+function loadMapLibre(){if(window.maplibregl)return Promise.resolve();if(window._mlLoad)return window._mlLoad;
+ const SRC=[['https://unpkg.com/maplibre-gl@5/dist/','js'],['https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/','js'],['https://unpkg.com/maplibre-gl@4.7.1/dist/','js']];
+ const one=base=>new Promise((res,rej)=>{const c=document.createElement('link');c.rel='stylesheet';c.href=base+'maplibre-gl.css';document.head.appendChild(c);const s=document.createElement('script');s.src=base+'maplibre-gl.js';s.async=true;const t=setTimeout(()=>{s.remove();rej(new Error('timeout'))},12000);s.onload=()=>{clearTimeout(t);window.maplibregl?res():rej(new Error('vuota'))};s.onerror=()=>{clearTimeout(t);s.remove();c.remove();rej(new Error('rete'))};document.head.appendChild(s)});
+ window._mlLoad=(async()=>{for(const [b] of SRC){try{await one(b);return}catch(e){}}window._mlLoad=null;throw new Error('mappa 3D non disponibile')})();return window._mlLoad}
 const VAN='<svg viewBox="0 0 40 64" width="34" height="54"><defs><filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".45"/></filter></defs><g filter="url(#sh)"><rect x="5" y="3" width="30" height="58" rx="8" fill="#ffffff" stroke="#1467c8" stroke-width="3"/><path d="M9 14 Q20 6 31 14 L30 22 L10 22Z" fill="#1d3550"/><rect x="10" y="27" width="20" height="28" rx="3" fill="#e9f1fa" stroke="#9fb8cf"/><rect x="2" y="12" width="4" height="9" rx="2" fill="#222"/><rect x="34" y="12" width="4" height="9" rx="2" fill="#222"/><rect x="2" y="44" width="4" height="10" rx="2" fill="#222"/><rect x="34" y="44" width="4" height="10" rx="2" fill="#222"/></g></svg>';
 let mlPromise=null;
 function ensure3D(pos){if(!mlPromise)mlPromise=build3D(pos).then(m=>{if(!m)mlPromise=null;return m});return mlPromise}
@@ -246,8 +249,9 @@ async function build3D(pos){
  if(ml)return ml;
  try{await loadMapLibre();
   const div=document.createElement('div');div.id='map3d';$('map').after(div);wrap.classList.add('nav3d');
-  ml=new maplibregl.Map({container:div,style:'https://tiles.openfreemap.org/styles/liberty',center:[pos[1],pos[0]],zoom:17,pitch:60,bearing:0,attributionControl:{compact:true},interactive:true});
-  await new Promise((res,rej)=>{ml.on('load',res);ml.on('error',e=>{});setTimeout(()=>rej(new Error('mappa lenta')),15000)});
+  ml=new maplibregl.Map({container:div,style:'https://tiles.openfreemap.org/styles/liberty',center:[pos[1],pos[0]],zoom:17,pitch:60,bearing:0,attributionControl:{compact:true},interactive:true,pixelRatio:Math.min(window.devicePixelRatio||1,2),fadeDuration:0,maxTileCacheSize:80,refreshExpiredTiles:false,antialias:false,maxPitch:65});
+  ml.on('webglcontextlost',()=>{hide3D();msg('Mappa ricaricata.');setTimeout(()=>{if(pos)ensure3D(pos)},2500)});
+  await new Promise((res,rej)=>{ml.once('load',res);ml.on('error',e=>{});setTimeout(()=>rej(new Error('mappa lenta')),20000)});
   ml.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   ml.addLayer({id:'route-casing',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#0b4fa8','line-width':14}});
   ml.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#3d8bff','line-width':9}});
@@ -279,7 +283,7 @@ function showPoiMarkers(){if(!ml||!window.maplibregl)return;poiMarkers.forEach(m
 
 /* ---------- Leaflet (mappa normale, come prima) ---------- */
 let routeLine=null,destinationPin=null,userDot=null;
-function leafletFollow(pos){if(!LM()||!window.L)return;if(!userDot)userDot=L.circleMarker(pos,{radius:9,color:'#fff',weight:3,fillColor:'#1479e5',fillOpacity:1}).addTo(LM());else userDot.setLatLng(pos);if(!ml)LM().setView(pos,Math.max(LM().getZoom(),17),{animate:true})}
+function leafletFollow(pos){if(!LM()||!window.L||ml)return;if(!userDot)userDot=L.circleMarker(pos,{radius:9,color:'#fff',weight:3,fillColor:'#1479e5',fillOpacity:1}).addTo(LM());else userDot.setLatLng(pos);if(!ml)LM().setView(pos,Math.max(LM().getZoom(),17),{animate:true})}
 
 /* ---------- GPS ---------- */
 let watchId=null,pos=null,prevPos=null,heading=null,speedKmh=0,lastAcc=99;
@@ -377,7 +381,7 @@ async function begin(address){
  const button=$('startNavigation');button.disabled=true;button.textContent='Attendi…';msg('Cerco la destinazione…',true);
  try{document.activeElement?.blur();unlockAudio();if(!started)startAll(true);if(watchId===null)startGPS();msg('Cerco la tua posizione GPS…',true);const here=await waitPos(20000);if(!here)throw new Error('non trovo la tua posizione. Controlla che Safari possa usare la posizione (Impostazioni › Privacy › Localizzazione).');msg('Cerco la destinazione…',true);
   dest=await geocode(address);destName=address;const rt=await getRoute(here,dest);applyRoute(rt);
-  wrap.classList.add('route-active');document.activeElement?.blur();ensure3D(here);if(LM()&&routeLine){try{LM().fitBounds(routeLine.getBounds(),{padding:[30,30]})}catch(e){}}
+  wrap.classList.add('route-active');document.activeElement?.blur();msg('Preparo la mappa…',true);await Promise.race([ensure3D(here),new Promise(r=>setTimeout(r,12000))]);setTimeout(()=>{if(started&&!camLive())camStart(false)},2500);if(LM()&&routeLine){try{LM().fitBounds(routeLine.getBounds(),{padding:[30,30]})}catch(e){}}
   const km=(rt.distance/1000).toFixed(1).replace('.',','),min=Math.round(rt.duration/60);
   msg('Percorso: '+km+' km · circa '+min+' minuti');banner.style.display='flex';updateBanner();
   mapSilent('Percorso calcolato verso '+address+'. '+km+' chilometri, circa '+min+' minuti. '+cap(stepText(steps[Math.min(1,steps.length-1)].s))+' tra '+roundM(dist(here,steps[Math.min(1,steps.length-1)].loc))+'. Guida con prudenza e non toccare il telefono.',true);refresh();
@@ -411,7 +415,7 @@ async function photonSearch(q,limit){let bias='';if(pos)bias='&lat='+pos[0]+'&lo
  const r=await fetchT('https://photon.komoot.io/api/?limit='+(limit||6)+bias+ITBOX+'&q='+encodeURIComponent(q),{},8000);if(!r.ok)throw new Error('ricerca non disponibile');const j=await r.json();
  return (j.features||[]).filter(f=>!f.properties.countrycode||f.properties.countrycode==='IT').map(f=>{const l=sugLabel(f.properties);return {top:l.top,second:l.second,label:l.label,ll:[f.geometry.coordinates[1],f.geometry.coordinates[0]]}}).filter(x=>x.top)}
 const sugBox=document.createElement('div');sugBox.className='addrSug';form.appendChild(sugBox);
-const addrIn=$('destinationAddress');addrIn.setAttribute('autocomplete','off');addrIn.setAttribute('autocorrect','off');
+const addrIn=$('destinationAddress');addrIn.addEventListener('focus',()=>{loadMapLibre().catch(()=>{})},{once:true});addrIn.setAttribute('autocomplete','off');addrIn.setAttribute('autocorrect','off');
 let sugT=null,sugSeq=0;
 function showSug(list){if(!list.length){sugBox.innerHTML='<div class="sugEmpty">Nessun indirizzo trovato. Scrivi via e città, per esempio: Via Roma 10, Piacenza</div>';sugBox.style.display='block';return}
  sugBox.innerHTML='';list.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='sugItem';b.innerHTML='<span class="sugPin">📍</span><span class="sugTx"><b></b><small></small></span>';b.querySelector('b').textContent=it.top;b.querySelector('small').textContent=it.second;
@@ -560,7 +564,7 @@ async function startAll(fromNav){if(started)return;started=true;unlockAudio();ke
  bigStart.classList.add('on');bigStart.innerHTML='●';bigStart.title='Tocca per fermare tutto';
  if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');speechSynthesis.speak(u)}
  startMic();const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
-  if(fromNav){setTimeout(()=>{if(started)camStart(false)},1500);await gps;return}
+  if(fromNav){await gps;return}
   await Promise.race([camStart(false),new Promise(r=>setTimeout(r,9000))]);if(!started)return;
   Voice.say('Ciao! Partiamo. Tieni le mani sul volante.',true);
   setTimeout(()=>{window.courseAPI?.play()},300)}
