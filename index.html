@@ -112,7 +112,7 @@ function render(){let t=lessons[idx];el('autoMeta').textContent='LEZIONE '+(idx+
 function cancel(){token++;if('speechSynthesis' in window)window.speechSynthesis.cancel()}
 function speak(){if(!playing||paused||held||(window.VQ&&window.VQ.active))return;enrich(idx);let my=++token,t=lessons[idx];if(!('speechSynthesis' in window)){el('autoHint').textContent='Questo browser non supporta la sintesi vocale.';playing=false;return}window.speechSynthesis.cancel();const p=parts(t);
 if(chunk>=p.length){if(!brk){brk=true;inBreak=true;el('autoHint').textContent='Pausa: puoi farmi una domanda, oppure dire ripeti o avanti.';const wait=()=>{if(my!==token)return;if((window.userTalking&&window.userTalking())||window.aiBusy){setTimeout(wait,700);return}inBreak=false;speak()};setTimeout(wait,6000);return}brk=false;inBreak=false;chunk=0;if((idx+1)%5===0&&window.VQ&&!window.VQ.doneFor[idx]){window.VQ.doneFor[idx]=1;const from=idx-4,to=idx;window.VQ.start(lessons.slice(from,to+1),()=>{if(idx<lessons.length-1){idx++;render()}playing=true;paused=false;setTimeout(()=>{if(!held)speak()},800)});return}if(idx<lessons.length-1){idx++;render();enrich(idx+1);setTimeout(()=>{if(my===token)speak()},600)}else{playing=false;el('autoHint').textContent='Corso completato! Di\' quiz per allenarti, oppure premi Ricomincia.';el('autoPlay').textContent='▶ Ripeti'}return}
-const u=new SpeechSynthesisUtterance(p[chunk]);u.lang='it-IT';u.pitch=1;u.onend=()=>{if(my!==token||!playing||paused||held)return;chunk++;const go=()=>{if(my!==token)return;if(window.userTalking&&window.userTalking()){setTimeout(go,600);return}speak()};setTimeout(go,1300)};u.onerror=e=>{if(my!==token)return;if(e&&(e.error==='interrupted'||e.error==='canceled'))return;playing=false;el('autoHint').textContent='Audio interrotto dal browser. Premi Avvia corso per riprendere.'};
+const u=new SpeechSynthesisUtterance(p[chunk]);u.lang='it-IT';u.pitch=1;u.onend=()=>{window._ttsErr=0;if(my!==token||!playing||paused||held)return;chunk++;const go=()=>{if(my!==token)return;if(window.userTalking&&window.userTalking()){setTimeout(go,600);return}speak()};setTimeout(go,1300)};u.onerror=e=>{if(my!==token)return;if(e&&(e.error==='interrupted'||e.error==='canceled'))return;window._ttsErr=(window._ttsErr||0)+1;if(window._ttsErr<=3){setTimeout(()=>{if(my===token){try{speechSynthesis.cancel()}catch(_){}speak()}},900);return}window._ttsErr=0;playing=false;el('autoHint').textContent='Audio interrotto dal browser. Premi Lezione per riprendere.'};
 setTimeout(()=>{if(my===token)window.speechSynthesis.speak(u)},60);el('autoHint').textContent='Lezione in corso, piano piano. Frase '+(chunk+1)+' di '+p.length+'. A fine lezione faccio una pausa per le tue domande.';el('autoPlay').textContent='▶ Continua'}
 el('autoPlay').onclick=()=>{playing=true;paused=false;el('autoPause').textContent='⏸ Pausa';speak()};el('autoPause').onclick=()=>{if(!playing)return;if(!paused){paused=true;cancel();el('autoPause').textContent='▶ Riprendi'}else{paused=false;el('autoPause').textContent='⏸ Pausa';speak()}};
 function move(n){cancel();brk=false;inBreak=false;idx=Math.max(0,Math.min(lessons.length-1,idx+n));chunk=0;render();if(playing&&!paused)speak()}
@@ -413,9 +413,10 @@ function startMic(){if(!micPrefOn()){micLabel('🎙️ Comandi vocali spenti (pa
 function appSilent(){const C=window.courseAPI;return !speechSynthesis.speaking&&!speechSynthesis.pending&&!Voice.busy&&!window.aiBusy&&!(C&&C.isTalking&&C.isTalking())}
 setInterval(()=>{if(!micOn||!started||document.hidden)return;if(appSilent()){if(!rec&&Date.now()-lastRecEnd>400)spawnRec()}else if(rec&&!window.userTalking())window.micClose()},350);
 let lastRecEnd=0;
-function spawnRec(){let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');micOn=false;return}rec=r;
+let callOn=false;window.callIsOn=()=>callOn;
+function spawnRec(){if(callOn)window.directAI=true;let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');micOn=false;return}rec=r;
  r.lang='it-IT';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;let last='',done=false,timer=null;
- const fire=()=>{if(done||!last.trim())return;done=true;if(window.directAI){window.directAI=false;const n=norm(last);const w=n.split(' ').length;if(w>=2&&!/^(ferma|fermati|basta|stop|avanti|indietro|ripeti|continua|riprendi|pausa|cambia (la )?voce|termina)\b/.test(n)){askAI(last);return}}command(last)};
+ const fire=()=>{if(done||!last.trim())return;done=true;if(window.directAI){window.directAI=false;const n=norm(last);const w=n.split(' ').length;if(w>=2&&!/^(ferma|fermati|basta|stop|avanti|indietro|ripeti|continua|riprendi|pausa|cambia (la )?voce|termina)\b/.test(n)){askAI(last,callOn);return}}command(last)};
  r.onstart=()=>{micLabel('🎙️ Ti ascolto');if(window.directAI&&actx){try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.16)}catch(e){}}};
  r.onresult=e=>{userTalkAt=Date.now();let txt='';for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;last=txt;clearTimeout(timer);
   if(e.results[e.results.length-1].isFinal)fire();else timer=setTimeout(()=>{fire();try{r.stop()}catch(_){}},1400)};
@@ -529,16 +530,10 @@ document.addEventListener('visibilitychange',()=>{if(!started)return;if(document
 
 /* ---------- TASTO AVVIA: un tocco e parte tutto ---------- */
 let started=false;
-let permsAsked=false;
-/* Un solo consenso all'avvio per telecamera e microfono insieme, prima che la voce inizi a parlare */
-async function askPermsOnce(){if(permsAsked)return;permsAsked=true;micLabel('Consenti telecamera e microfono una volta sola');
- try{const s=await Promise.race([navigator.mediaDevices.getUserMedia({audio:true,video:{facingMode:{ideal:'environment'}}}),new Promise((_,r)=>setTimeout(()=>r(Error('tempo')),15000))]);s.getTracks().forEach(t=>t.stop())}
- catch(e){try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop())}catch(_){}}
- try{speechSynthesis.cancel();speechSynthesis.resume()}catch(e){}await new Promise(r=>setTimeout(r,400))}
 async function startAll(fromNav){if(started)return;started=true;unlockAudio();keepAwake();
  bigStart.classList.add('on');bigStart.innerHTML='●';bigStart.title='Tocca per fermare tutto';
  if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');speechSynthesis.speak(u)}
- await askPermsOnce();if(!started)return;startMic();camStart(false);const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
+ startMic();setTimeout(()=>{if(started)camStart(false)},1500);const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
  if(fromNav)await gps;
  if(!fromNav){Voice.say('Ciao! Partiamo. Tieni le mani sul volante. Quando vuoi, fammi una domanda.',true);
   setTimeout(()=>{window.courseAPI?.play()},300)}}
@@ -546,6 +541,10 @@ function stopAll(){started=false;bigStart.classList.remove('on');bigStart.innerH
  if(userDot&&LM()){LM().removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
 const micBtn=document.createElement('button');micBtn.className='micBtn';micBtn.id='micBtn';micBtn.innerHTML='🎙️';micBtn.title='Tocca e parla';wrap.appendChild(micBtn);
 micBtn.addEventListener('click',()=>{unlockAudio();if(!started){startAll(false)}if(!SR){micLabel('🎙️ Microfono non disponibile: usa Safari aggiornato');return}Voice.stop();window.courseAPI?.hold();try{speechSynthesis.cancel()}catch(e){}window.micClose();micOn=true;window.directAI=true;userTalkAt=Date.now()+4000;spawnRec();setTimeout(()=>{if(!rec)window.courseAPI?.release()},9000)});
+window.toggleCallAI=function(){unlockAudio();callOn=!callOn;
+ if(callOn){if(!started)startAll(true);window.courseAPI?.hold();try{speechSynthesis.cancel()}catch(e){}camStart(true);micOn=true;Voice.say('Ti ascolto. Parla pure, vedo anche la strada.',true)}
+ else{window.directAI=false;window.micClose();Voice.say('Chiamata chiusa.',true);window.courseAPI?.release()}
+ return callOn};
 const vBtn=document.createElement('button');vBtn.className='voiceBtn';vBtn.innerHTML='🔊';vBtn.title='Cambia voce';wrap.appendChild(vBtn);vBtn.addEventListener('click',()=>{unlockAudio();window.cambiaVoce()});
 setInterval(()=>{if(!started){heard.style.display='none';return}if(!heard.textContent||heard.style.display==='none'){micLabel(rec?'🎙️ Ti ascolto':'🔊 Sto parlando · tocca 🎙️ per farmi una domanda')}},1500);
 bigStart.addEventListener('click',()=>{if(started)stopAll();else startAll(false)});
@@ -651,5 +650,27 @@ setInterval(()=>{if(!b)return;const on=st&&st.classList.contains('on');b.classLi
  if(speechSynthesis.speaking||speechSynthesis.pending){last=Date.now();if(speechSynthesis.paused)try{speechSynthesis.resume()}catch(e){}return}
  if(open||(window.userTalking&&window.userTalking())||window.aiBusy){last=Date.now();return}
  if(C&&C.isTalking&&C.isTalking()&&Date.now()-last>5000){last=Date.now();try{speechSynthesis.cancel()}catch(e){}C.resume()}},400)})();
+</script>
+<style id="treBottoni">
+#guida .lessonfeature .lessoncontrols.tre{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:8px}
+#guida .lessoncontrols.tre button{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;border-radius:14px!important;font-size:14px!important;font-weight:800;color:#fff!important;padding:8px 4px!important;box-shadow:0 3px 10px #0003;flex:none!important}
+#guida .lessoncontrols.tre svg{width:26px;height:26px}
+#guida .lessoncontrols.tre .bLez{background:#12a35b!important}
+#guida .lessoncontrols.tre .bFer{background:#1f5fc4!important}
+#guida .lessoncontrols.tre .bAI{background:#d92b33!important}
+#guida .lessoncontrols.tre .bAI.on{animation:micPulse 1.3s ease-out infinite;background:#b3141c!important}
+</style>
+<script id="treBottoniScript">
+(function(){const box=document.querySelector('#guida .lessonfeature .lessoncontrols');if(!box)return;box.classList.add('tre');
+const I={lez:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>',
+fer:'<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="#fff"/></svg>',
+ai:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="6" width="13" height="12" rx="2.5"/><path d="M14.5 10.5 22 7v10l-7.5-3.5"/><circle cx="8" cy="12" r="2.4" fill="#fff"/></svg>'};
+box.innerHTML='<button class="bLez">'+I.lez+'Lezione</button><button class="bFer">'+I.fer+'Ferma</button><button class="bAI">'+I.ai+'Parla con AI</button>';
+const [L,F,A]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');
+const setAI=on=>{A.classList.toggle('on',on);A.lastChild.textContent=on?'Chiudi':'Parla con AI'};
+L.onclick=()=>{if(window.callIsOn&&window.callIsOn()){window.toggleCallAI();setAI(false)}const b=st();if(b&&!b.classList.contains('on'))b.click();else window.courseAPI&&window.courseAPI.resume()};
+F.onclick=()=>{if(window.callIsOn&&window.callIsOn()){window.toggleCallAI();setAI(false)}window.courseAPI&&window.courseAPI.stop();try{speechSynthesis.cancel()}catch(e){}};
+A.onclick=()=>{if(!window.toggleCallAI)return;const b=st();setAI(window.toggleCallAI());};
+})();
 </script>
 </body></html>
