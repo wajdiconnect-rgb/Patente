@@ -107,6 +107,7 @@ let x=`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox
 (hasSign?`<rect x="50" y="110" width="380" height="380" rx="36" fill="#ffffff"/><g transform="translate(-176,105) scale(1.3)">${sg}</g>`:'')+
 `<foreignObject x="${tx}" y="${y0}" width="${1100-tx-60}" height="${560-y0}"><div xmlns="http://www.w3.org/1999/xhtml" style="font:600 27px/1.4 -apple-system,Helvetica,Arial;color:#dbe8f3">${detail}<div style="margin-top:16px;color:#ffffff;font-weight:700">${tip}</div></div></foreignObject></svg>`;
 return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)}
+window._lessonPic=t=>t[6]||card(t);window._lessonRender=()=>render();
 function save(){try{localStorage.setItem('img-course-index-v2',String(idx))}catch(e){}}
 function render(){let t=lessons[idx];el('autoMeta').textContent='LEZIONE '+(idx+1)+' DI '+lessons.length+' · '+t[0];el('autoProgress').style.width=((idx+1)/lessons.length*100)+'%';const pic=t[6]||card(t);el('autoPicture').src=pic;const poster=document.getElementById('roundaboutPoster');if(poster){poster.src=pic;poster.alt='Lezione: '+t[0]}const hd=document.querySelector('#guida .lessonhead strong');if(hd)hd.textContent='📖 LEZIONE '+(idx+1)+' · '+t[0].toUpperCase();const hs=document.querySelector('#guida .lessonhead span');if(hs)hs.textContent='di '+lessons.length;const rn=document.querySelector('#guida .reviewnote');if(rn)rn.style.display='none';el('autoPicture').alt='Scheda illustrata: '+t[0];el('autoExplain').textContent=t[5]||(t[2]+' '+t[3]);save()}
 function cancel(){token++;if('speechSynthesis' in window)window.speechSynthesis.cancel()}
@@ -642,17 +643,19 @@ const silent=()=>{const v=V();return !(v&&v.busy)&&!speechSynthesis.speaking&&!s
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const sentences=t=>((t[5]||'')+' '+(t[2]||'')+' '+(t[3]||'')).match(/[^.!?]+[.!?]/g)?.map(x=>x.trim()).filter(x=>x.length>35&&x.length<190&&!/^(ricapitoliamo|ripeto|ecco|oggi|lezione|guarda)/i.test(x))||[];
 function localQuestions(ls){const out=[];const bank=shuffle((typeof questions!=='undefined'?questions:[]).slice());
- ls.forEach(t=>{shuffle(sentences(t)).slice(0,3).forEach(x=>out.push({q:x.replace(/[.!?]$/,'')+'.',a:true,why:'È proprio quello che abbiamo detto nella lezione su '+t[0]+'.'}))});
+ ls.forEach(t=>{shuffle(sentences(t)).slice(0,3).forEach(x=>out.push({q:x.replace(/[.!?]$/,'')+'.',a:true,why:'È proprio quello che abbiamo detto nella lezione su '+t[0]+'.',t}))});
  while(out.length<30&&bank.length)out.push(bank.pop());return shuffle(out).slice(0,30)}
 async function aiQuestions(ls){const txt=ls.map((t,i)=>'Lezione '+(i+1)+': '+t[0]+'. '+(t[5]||'')+' '+(t[2]||'')+' '+(t[3]||'')).join('\n');
- const r=await window.aiCall([{role:'user',content:'Ecco cinque lezioni di teoria della patente B italiana:\n'+txt+'\n\nScrivi esattamente 30 domande vero o falso, 6 per ogni lezione, nello stile del quiz ministeriale italiano (frasi affermative, alcune vere e alcune false, circa metà e metà). Devono essere corrette secondo il codice della strada italiano. Per ognuna una spiegazione breve, una frase, da leggere a voce. Formato JSON: {"domande":[{"q":"testo","a":true,"why":"spiegazione"}]}'}],'Sei un esperto del quiz ministeriale della patente B italiana. Rispondi solo con JSON valido.',3000,true);
- const m=r.match(/\{[\s\S]*\}/);const j=JSON.parse(m[0]);const d=(j.domande||[]).filter(x=>x&&x.q&&typeof x.a==='boolean');if(d.length<20)throw new Error('poche domande');return d.slice(0,30)}
+ const r=await window.aiCall([{role:'user',content:'Ecco cinque lezioni di teoria della patente B italiana:\n'+txt+'\n\nScrivi esattamente 30 domande vero o falso, 6 per ogni lezione, nello stile del quiz ministeriale italiano (frasi affermative, alcune vere e alcune false, circa metà e metà). Devono essere corrette secondo il codice della strada italiano. Per ognuna una spiegazione breve, una frase, da leggere a voce. Per ogni domanda indica in "l" il numero della lezione (da 1 a 5) a cui si riferisce. Formato JSON: {"domande":[{"l":1,"q":"testo","a":true,"why":"spiegazione"}]}'}],'Sei un esperto del quiz ministeriale della patente B italiana. Rispondi solo con JSON valido.',3000,true);
+ const m=r.match(/\{[\s\S]*\}/);const j=JSON.parse(m[0]);const d=(j.domande||[]).filter(x=>x&&x.q&&typeof x.a==='boolean');if(d.length<20)throw new Error('poche domande');d.forEach(x=>{const n=parseInt(x.l,10);if(n>=1&&n<=ls.length)x.t=ls[n-1]});return d.slice(0,30)}
 const VQ={active:false,doneFor:{},list:[],i:0,err:0,done:null,waitTimer:null,asked:0,
- async start(ls,done){this.active=true;this.done=done;this.i=0;this.err=0;window.courseAPI?.pause?.();
+ async start(ls,done){this.active=true;this.ls=ls;this.done=done;this.i=0;this.err=0;window.courseAPI?.pause?.();
   say('Bravo, hai finito cinque lezioni. Adesso facciamo il quiz, come all\'esame: trenta domande. Io leggo la frase, tu tocca Vero oppure Falso sullo schermo, quando sei fermo. Puoi sbagliare al massimo tre volte. Preparo le domande.');
   let list=null;if(window.aiReady&&window.aiReady()){try{list=await aiQuestions(ls)}catch(e){}}
   this.list=list||localQuestions(ls);if(!this.list.length){this.finish();return}this.ask()},
- ask(){const q=this.list[this.i];this.asked=0;say('Domanda '+(this.i+1)+'. '+q.q+' Vero o falso?');this.arm()},
+ showPic(q){if(!q.t){const w=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const qq=w(q.q);let best=null,bs=0;(this.ls||[]).forEach(t=>{const k=w(t[0]).split(/[^a-z0-9]+/).filter(x=>x.length>3);const sc=k.filter(x=>qq.includes(x)).length/(k.length||1);if(sc>bs){bs=sc;best=t}});q.t=best||(this.ls||[])[this.i%((this.ls||[]).length||1)]}
+  try{const pic=q.t&&window._lessonPic?window._lessonPic(q.t):null;const img=document.getElementById('roundaboutPoster');if(pic&&img){img.src=pic;img.alt='Quiz: '+q.t[0]}const a=document.getElementById('autoPicture');if(pic&&a)a.src=pic;const hd=document.querySelector('#guida .lessonhead strong');if(hd)hd.textContent='📝 QUIZ · DOMANDA '+(this.i+1)+' DI '+this.list.length+(q.t?' · '+q.t[0].toUpperCase():'');const hs=document.querySelector('#guida .lessonhead span');if(hs)hs.textContent='errori '+this.err}catch(e){}},
+ ask(){const q=this.list[this.i];this.asked=0;this.showPic(q);say('Domanda '+(this.i+1)+'. '+q.q+' Vero o falso?');this.arm()},
  arm(){clearTimeout(this.waitTimer);const t0=Date.now();const tick=()=>{if(!this.active)return;if(!silent()){this.waitTimer=setTimeout(tick,500);return}
   this.waitTimer=setTimeout(()=>{if(!this.active)return;if(this.asked<1){this.asked++;say('Ripeto. '+this.list[this.i].q+' Vero o falso?');this.arm()}else{say('Non ti ho sentito. Andiamo avanti.');this.next()}},25000)};this.waitTimer=setTimeout(tick,600)},
  handle(t){if(!this.active)return false;
@@ -665,7 +668,7 @@ const VQ={active:false,doneFor:{},list:[],i:0,err:0,done:null,waitTimer:null,ask
  next(){this.i++;if(this.i>=this.list.length){this.finish();return}setTimeout(()=>{if(this.active)this.ask()},400)},
  finish(stopped){clearTimeout(this.waitTimer);const e=this.err,n=this.i;this.active=false;
   if(!stopped)say(e<=3?'Quiz finito. Hai fatto '+e+(e===1?' errore':' errori')+' su '+n+'. Quiz superato, bravissimo! Andiamo avanti con le lezioni.':'Quiz finito. Hai fatto '+e+' errori su '+n+'. All\'esame il massimo è tre, quindi questa volta non è superato. Non ti preoccupare, andiamo avanti e poi ripassiamo.');
-  const d=this.done;this.done=null;if(d)setTimeout(d,300)}};
+  const d=this.done;this.done=null;try{window._lessonRender&&window._lessonRender()}catch(e){}if(d)setTimeout(d,300)}};
 window.VQ=VQ;
 })();
 </script><style id="micBall">
