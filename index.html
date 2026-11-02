@@ -111,7 +111,7 @@ function save(){try{localStorage.setItem('img-course-index-v2',String(idx))}catc
 function render(){let t=lessons[idx];el('autoMeta').textContent='LEZIONE '+(idx+1)+' DI '+lessons.length+' · '+t[0];el('autoProgress').style.width=((idx+1)/lessons.length*100)+'%';const pic=t[6]||card(t);el('autoPicture').src=pic;const poster=document.getElementById('roundaboutPoster');if(poster){poster.src=pic;poster.alt='Lezione: '+t[0]}const hd=document.querySelector('#guida .lessonhead strong');if(hd)hd.textContent='📖 LEZIONE '+(idx+1)+' · '+t[0].toUpperCase();const hs=document.querySelector('#guida .lessonhead span');if(hs)hs.textContent='di '+lessons.length;const rn=document.querySelector('#guida .reviewnote');if(rn)rn.style.display='none';el('autoPicture').alt='Scheda illustrata: '+t[0];el('autoExplain').textContent=t[5]||(t[2]+' '+t[3]);save()}
 function cancel(){token++;if('speechSynthesis' in window)window.speechSynthesis.cancel()}
 function speak(){if(!playing||paused||held||(window.VQ&&window.VQ.active))return;enrich(idx);let my=++token,t=lessons[idx];if(!('speechSynthesis' in window)){el('autoHint').textContent='Questo browser non supporta la sintesi vocale.';playing=false;return}window.speechSynthesis.cancel();const p=parts(t);
-if(chunk>=p.length){if(!brk){brk=true;inBreak=true;el('autoHint').textContent='Pausa: puoi farmi una domanda, oppure dire ripeti o avanti.';const wait=()=>{if(my!==token)return;if((window.userTalking&&window.userTalking())||window.aiBusy){setTimeout(wait,700);return}inBreak=false;speak()};setTimeout(wait,6000);return}brk=false;inBreak=false;chunk=0;if((idx+1)%5===0&&window.VQ&&!window.VQ.doneFor[idx]){window.VQ.doneFor[idx]=1;const from=idx-4,to=idx;window.VQ.start(lessons.slice(from,to+1),()=>{if(idx<lessons.length-1){idx++;render()}playing=true;paused=false;setTimeout(()=>{if(!held)speak()},800)});return}if(idx<lessons.length-1){idx++;render();enrich(idx+1);setTimeout(()=>{if(my===token)speak()},600)}else{playing=false;el('autoHint').textContent='Corso completato! Di\' quiz per allenarti, oppure premi Ricomincia.';el('autoPlay').textContent='▶ Ripeti'}return}
+if(chunk>=p.length){if(!brk){brk=true;inBreak=true;el('autoHint').textContent='Pausa breve, poi si continua.';const wait=()=>{if(my!==token)return;if((window.userTalking&&window.userTalking())||window.aiBusy){setTimeout(wait,700);return}inBreak=false;speak()};setTimeout(wait,6000);return}brk=false;inBreak=false;chunk=0;if((idx+1)%5===0&&window.VQ&&!window.VQ.doneFor[idx]){window.VQ.doneFor[idx]=1;const from=idx-4,to=idx;window.VQ.start(lessons.slice(from,to+1),()=>{if(idx<lessons.length-1){idx++;render()}playing=true;paused=false;setTimeout(()=>{if(!held)speak()},800)});return}if(idx<lessons.length-1){idx++;render();enrich(idx+1);setTimeout(()=>{if(my===token)speak()},600)}else{playing=false;el('autoHint').textContent='Corso completato! Di\' quiz per allenarti, oppure premi Ricomincia.';el('autoPlay').textContent='▶ Ripeti'}return}
 const u=new SpeechSynthesisUtterance(p[chunk]);u.lang='it-IT';u.pitch=1;u.onend=()=>{window._ttsErr=0;if(my!==token||!playing||paused||held)return;chunk++;const go=()=>{if(my!==token)return;if(window.userTalking&&window.userTalking()){setTimeout(go,600);return}speak()};setTimeout(go,1300)};u.onerror=e=>{if(my!==token)return;if(e&&(e.error==='interrupted'||e.error==='canceled'))return;window._ttsErr=(window._ttsErr||0)+1;if(window._ttsErr<=3){setTimeout(()=>{if(my===token){try{speechSynthesis.cancel()}catch(_){}speak()}},900);return}window._ttsErr=0;playing=false;el('autoHint').textContent='Audio interrotto dal browser. Premi Lezione per riprendere.'};
 setTimeout(()=>{if(my===token)window.speechSynthesis.speak(u)},60);el('autoHint').textContent='Lezione in corso, piano piano. Frase '+(chunk+1)+' di '+p.length+'. A fine lezione faccio una pausa per le tue domande.';el('autoPlay').textContent='▶ Continua'}
 el('autoPlay').onclick=()=>{playing=true;paused=false;el('autoPause').textContent='⏸ Pausa';speak()};el('autoPause').onclick=()=>{if(!playing)return;if(!paused){paused=true;cancel();el('autoPause').textContent='▶ Riprendi'}else{paused=false;el('autoPause').textContent='⏸ Pausa';speak()}};
@@ -349,7 +349,7 @@ function checkAlerts(){if(!pos||heading==null||speedKmh<8||!started)return;const
 
 /* ---------- Navigatore: percorso, frecce e voce ---------- */
 let route=null,routeGeo=null,steps=[],si=0,dest=null,destName='',offCount=0,lastReroute=0;
-async function geocode(address){try{return await geocodeNom(address)}catch(e){const r=await fetchT('https://photon.komoot.io/api/?limit=1&lang=it&q='+encodeURIComponent(address)+(pos?'&lat='+pos[0]+'&lon='+pos[1]:''));if(!r.ok)throw e;const j=await r.json();const f=j.features?.[0];if(!f)throw new Error('indirizzo non trovato. Prova con via, numero e città.');return [f.geometry.coordinates[1],f.geometry.coordinates[0]]}}
+async function geocode(address){if(window._pickedAddr&&window._pickedAddr.label===address)return window._pickedAddr.ll;try{const s=await photonSearch(address,1);if(s.length)return s[0].ll}catch(e){}try{return await geocodeNom(address)}catch(e){const r=await fetchT('https://photon.komoot.io/api/?limit=1&lang=it&q='+encodeURIComponent(address)+(pos?'&lat='+pos[0]+'&lon='+pos[1]:''));if(!r.ok)throw e;const j=await r.json();const f=j.features?.[0];if(!f)throw new Error('indirizzo non trovato. Prova con via, numero e città.');return [f.geometry.coordinates[1],f.geometry.coordinates[0]]}}
 async function geocodeNom(address){let vb='';if(pos)vb='&viewbox='+(pos[1]-0.6)+','+(pos[0]+0.6)+','+(pos[1]+0.6)+','+(pos[0]-0.6);
  const r=await fetchT('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&accept-language=it'+vb+'&q='+encodeURIComponent(address));if(!r.ok)throw new Error('ricerca indirizzo non disponibile');
  const d=await r.json();if(!d.length)throw new Error('indirizzo non trovato. Prova con via e città.');return [Number(d[0].lat),Number(d[0].lon)]}
@@ -403,7 +403,22 @@ function trackRoute(){const st=steps[si];if(!st)return;const d=dist(pos,st.loc);
 function endRoute(quiet){route=null;steps=[];dest=null;banner.style.display='none';wrap.classList.remove('route-active');
  if(LM()){if(routeLine){LM().removeLayer(routeLine);routeLine=null}if(destinationPin){LM().removeLayer(destinationPin);destinationPin=null}}
  if(ml?.getSource('route'))ml.getSource('route').setData({type:'FeatureCollection',features:[]});if(!quiet)mapSilent('Navigazione terminata.');refresh()}
-form.addEventListener('submit',e=>{e.preventDefault();const a=$('destinationAddress').value.trim();if(a)begin(a)});
+form.addEventListener('submit',e=>{e.preventDefault();sugBox.style.display='none';const a=$('destinationAddress').value.trim();if(a)begin(a)});
+/* ---------- Suggerimenti indirizzo (come Google Maps) ---------- */
+const ITBOX='&bbox=6.6,35.4,18.6,47.2';
+function sugLabel(p){const via=[p.street||(p.type==='street'?p.name:''),p.housenumber].filter(Boolean).join(' ');const top=(p.name&&p.name!==p.street&&p.type!=='street'&&p.type!=='house')?p.name:(via||p.name||'');const city=p.city||p.town||p.village||p.county||'';const second=[top!==via?via:'',city,p.state&&p.state!==city?p.state:''].filter(Boolean).join(', ');return {top,second,label:[top,top!==via?via:'',city].filter(Boolean).join(', ')}}
+async function photonSearch(q,limit){let bias='';if(pos)bias='&lat='+pos[0]+'&lon='+pos[1]+'&location_bias_scale=0.4';
+ const r=await fetchT('https://photon.komoot.io/api/?limit='+(limit||6)+bias+ITBOX+'&q='+encodeURIComponent(q),{},8000);if(!r.ok)throw new Error('ricerca non disponibile');const j=await r.json();
+ return (j.features||[]).filter(f=>!f.properties.countrycode||f.properties.countrycode==='IT').map(f=>{const l=sugLabel(f.properties);return {top:l.top,second:l.second,label:l.label,ll:[f.geometry.coordinates[1],f.geometry.coordinates[0]]}}).filter(x=>x.top)}
+const sugBox=document.createElement('div');sugBox.className='addrSug';form.appendChild(sugBox);
+const addrIn=$('destinationAddress');addrIn.setAttribute('autocomplete','off');addrIn.setAttribute('autocorrect','off');
+let sugT=null,sugSeq=0;
+function showSug(list){if(!list.length){sugBox.innerHTML='<div class="sugEmpty">Nessun indirizzo trovato. Scrivi via e città, per esempio: Via Roma 10, Piacenza</div>';sugBox.style.display='block';return}
+ sugBox.innerHTML='';list.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='sugItem';b.innerHTML='<span class="sugPin">📍</span><span class="sugTx"><b></b><small></small></span>';b.querySelector('b').textContent=it.top;b.querySelector('small').textContent=it.second;
+  b.addEventListener('click',()=>{window._pickedAddr={label:it.label,ll:it.ll};addrIn.value=it.label;sugBox.style.display='none';addrIn.blur();begin(it.label)});sugBox.appendChild(b)});sugBox.style.display='block'}
+addrIn.addEventListener('input',()=>{clearTimeout(sugT);const q=addrIn.value.trim();window._pickedAddr=null;if(q.length<3){sugBox.style.display='none';return}
+ sugT=setTimeout(async()=>{const my=++sugSeq;try{const l=await photonSearch(q,6);if(my===sugSeq&&addrIn.value.trim()===q)showSug(l)}catch(e){if(my===sugSeq)sugBox.style.display='none'}},350)});
+document.addEventListener('click',e=>{if(!form.contains(e.target))sugBox.style.display='none'});
 $('cameraQuick').addEventListener('click',()=>{if(typeof startCamera==='function')startCamera()});
 endButton.addEventListener('click',()=>endRoute());$('navClose').addEventListener('click',()=>endRoute());
 const wazeButton=[...document.querySelectorAll('.mapactions button')].find(b=>b.textContent.includes('Waze'));
@@ -411,12 +426,12 @@ if(wazeButton){wazeButton.textContent='📍 Destinazione';wazeButton.onclick=()=
 window.openWaze=()=>$('destinationAddress').focus();
 
 /* ---------- Comandi vocali ---------- */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,micOn=false;
+const SR=null;/* microfono tolto (2 nov): la voce non si interrompe più */let rec=null,micOn=false;
 function showHeard(t){heard.textContent='🎙️ '+t;heard.style.display='block'}
 function micLabel(t){heard.textContent=t;heard.style.display='block'}
 const micPrefOn=()=>store.get('mic-on','1')==='1';let userTalkAt=0;window.userTalking=()=>Date.now()-userTalkAt<1800;
 window.micIsOpen=()=>!!rec;window.micClose=()=>{const r=rec;rec=null;try{r?.abort()}catch(e){}};
-function startMic(){if(!micPrefOn()){micLabel('🎙️ Comandi vocali spenti (pagina Voce)');return}if(!SR){micLabel('🎙️ Comandi vocali non disponibili: usa Safari aggiornato');return}micOn=true}
+function startMic(){micOn=false}
 function appSilent(){const C=window.courseAPI;return !speechSynthesis.speaking&&!speechSynthesis.pending&&!Voice.busy&&!window.aiBusy&&!(C&&C.isTalking&&C.isTalking())}
 const typing=()=>{const a=document.activeElement;return !!a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')};
 setInterval(()=>{if(!micOn||!started||document.hidden)return;if(typing()||camBusy||Date.now()<camQuietUntil){if(rec)window.micClose();return}if(appSilent()){if(!rec&&Date.now()-lastRecEnd>400)spawnRec()}else if(rec&&!window.userTalking())window.micClose()},350);
@@ -445,7 +460,7 @@ async function camStart(manual){if(camBusy)return;const v=document.getElementByI
   stream=s;v.srcObject=s;v.muted=true;v.setAttribute('playsinline','');try{await v.play()}catch(e){}
   document.getElementById('camplaceholder').style.display='none';camLastT=-1;camStill=0;
   const tr=s.getVideoTracks()[0];if(tr){tr.onended=()=>camRestart();tr.onmute=()=>setTimeout(()=>{if(tr.muted)camRestart()},2500)}
- }catch(e){if(manual)msg('Telecamera non disponibile: '+e.message,true)}finally{camBusy=false;camQuietUntil=Date.now()+1500;if(C&&!wasHeld)setTimeout(()=>{if(C.isHeld&&C.isHeld()&&!Voice.busy&&!(window.callIsOn&&window.callIsOn()))C.release()},900)}}
+ }catch(e){if(manual){const n=(e&&e.name)||'';msg(/NotAllowed|Security|denied|not allowed/i.test(n+' '+e.message)?'📷 La telecamera è bloccata dal browser. Safari: tocca aA › Impostazioni sito web › Fotocamera › Consenti. Chrome: Impostazioni iPhone › Chrome › Fotocamera. Poi ricarica la pagina.':/NotFound|Overconstrained/i.test(n)?'📷 Non trovo una telecamera su questo dispositivo.':/NotReadable|Abort/i.test(n)?'📷 La telecamera è usata da un\'altra app. Chiudila e riprova.':'📷 Telecamera non disponibile: '+e.message,true)}}finally{camBusy=false;camQuietUntil=Date.now()+1500;if(C&&!wasHeld)setTimeout(()=>{if(C.isHeld&&C.isHeld()&&!Voice.busy&&!(window.callIsOn&&window.callIsOn()))C.release()},900)}}
 function camRestart(){if(!started||document.hidden)return;const v=document.getElementById('video');if(camLive()){if(v&&v.paused)v.play().catch(()=>{});return}const now=Date.now();camTimes=camTimes.filter(t=>now-t<120000);if(camTimes.length>=2)return;camTimes.push(now);setTimeout(()=>camStart(false),800)}
 window.startCamera=()=>camStart(true);
 setInterval(()=>{if(!started||document.hidden)return;const v=document.getElementById('video');if(!v||!v.srcObject)return;
@@ -547,7 +562,7 @@ async function startAll(fromNav){if(started)return;started=true;unlockAudio();ke
  startMic();const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
   if(fromNav){setTimeout(()=>{if(started)camStart(false)},1500);await gps;return}
   await Promise.race([camStart(false),new Promise(r=>setTimeout(r,9000))]);if(!started)return;
-  Voice.say('Ciao! Partiamo. Tieni le mani sul volante. Quando vuoi, fammi una domanda.',true);
+  Voice.say('Ciao! Partiamo. Tieni le mani sul volante.',true);
   setTimeout(()=>{window.courseAPI?.play()},300)}
 function stopAll(){started=false;bigStart.classList.remove('on');bigStart.innerHTML='▶ AVVIA';try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}Voice.stop();window.courseAPI?.stop();stopMic();stopGPS();endRoute(true);hide3D();try{wakeLock?.release()}catch(e){}
  if(userDot&&LM()){LM().removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
@@ -630,7 +645,7 @@ async function aiQuestions(ls){const txt=ls.map((t,i)=>'Lezione '+(i+1)+': '+t[0
  const m=r.match(/\{[\s\S]*\}/);const j=JSON.parse(m[0]);const d=(j.domande||[]).filter(x=>x&&x.q&&typeof x.a==='boolean');if(d.length<20)throw new Error('poche domande');return d.slice(0,30)}
 const VQ={active:false,doneFor:{},list:[],i:0,err:0,done:null,waitTimer:null,asked:0,
  async start(ls,done){this.active=true;this.done=done;this.i=0;this.err=0;window.courseAPI?.pause?.();
-  say('Bravo, hai finito cinque lezioni. Adesso facciamo il quiz, come all\'esame: trenta domande. Io leggo la frase, tu rispondi vero oppure falso. Puoi sbagliare al massimo tre volte. Preparo le domande.');
+  say('Bravo, hai finito cinque lezioni. Adesso facciamo il quiz, come all\'esame: trenta domande. Io leggo la frase, tu tocca Vero oppure Falso sullo schermo, quando sei fermo. Puoi sbagliare al massimo tre volte. Preparo le domande.');
   let list=null;if(window.aiReady&&window.aiReady()){try{list=await aiQuestions(ls)}catch(e){}}
   this.list=list||localQuestions(ls);if(!this.list.length){this.finish();return}this.ask()},
  ask(){const q=this.list[this.i];this.asked=0;say('Domanda '+(this.i+1)+'. '+q.q+' Vero o falso?');this.arm()},
@@ -664,37 +679,57 @@ setInterval(()=>{if(!b)return;const on=st&&st.classList.contains('on');b.classLi
  if(open||(window.userTalking&&window.userTalking())||window.aiBusy){last=Date.now();return}
  if(C&&C.isTalking&&C.isTalking()&&Date.now()-last>5000){last=Date.now();try{speechSynthesis.cancel()}catch(e){}C.resume()}},400)})();
 </script>
-<style id="treBottoni">
-#guida .lessonfeature .lessoncontrols.tre{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:8px}
-#guida .lessonfeature .lessoncontrols.tre{position:relative;padding-top:10px;gap:10px}
-#guida .lessonfeature .lessoncontrols.tre::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:4px;background:linear-gradient(90deg,#009246 0 33.3%,#f4f5f0 33.3% 66.6%,#ce2b37 66.6%);box-shadow:0 0 0 1px #0000000f}
-#guida .lessoncontrols.tre button{position:relative;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;border-radius:20px!important;font-size:15px!important;font-weight:800;letter-spacing:.2px;color:#fff!important;padding:10px 4px!important;border:0!important;flex:none!important;overflow:hidden;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,box-shadow .12s ease}
-#guida .lessoncontrols.tre button::after{content:"";position:absolute;inset:0 0 50% 0;background:linear-gradient(#ffffff38,#ffffff00);pointer-events:none}
-#guida .lessoncontrols.tre button:active{transform:translateY(2px) scale(.98)}
-#guida .lessoncontrols.tre .ic{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#ffffff2e}
-#guida .lessoncontrols.tre svg{width:22px;height:22px}
-#guida .lessoncontrols.tre .bLez{background:linear-gradient(160deg,#16b05e,#008c45)!important;box-shadow:0 6px 0 #006b35,0 10px 18px #008c4555!important}
-#guida .lessoncontrols.tre .bFer{background:linear-gradient(160deg,#ffffff,#eef0ea)!important;color:#1d2a33!important;box-shadow:0 6px 0 #c9cdc4,0 10px 18px #00000022,inset 0 0 0 1.5px #dfe3da!important}
-#guida .lessoncontrols.tre .bFer .ic{background:#1d2a330f}
-#guida .lessoncontrols.tre .bAI{background:linear-gradient(160deg,#e8414c,#c4222e)!important;box-shadow:0 6px 0 #951a23,0 10px 18px #ce2b3755!important}
-#guida .lessoncontrols.tre button:active.bLez{box-shadow:0 3px 0 #006b35,0 5px 10px #008c4544!important}
-#guida .lessoncontrols.tre button:active.bFer{box-shadow:0 3px 0 #c9cdc4,0 5px 10px #00000018,inset 0 0 0 1.5px #dfe3da!important}
-#guida .lessoncontrols.tre button:active.bAI{box-shadow:0 3px 0 #951a23,0 5px 10px #ce2b3744!important}
-#guida .lessoncontrols.tre .bAI.on{animation:callPulse 1.4s ease-out infinite}
-@keyframes callPulse{0%{box-shadow:0 6px 0 #951a23,0 0 0 0 #ce2b3799}100%{box-shadow:0 6px 0 #951a23,0 0 0 16px #ce2b3700}}
-body.night #guida .lessoncontrols.tre .bFer{background:linear-gradient(160deg,#f7f8f4,#dfe2da)!important}
+<style id="bottoniLezione">
+#guida .lessonfeature .lessoncontrols.lez3{display:flex!important;align-items:center;justify-content:center;gap:18px;margin:10px 0 4px!important;padding:14px 0 0!important;position:relative}
+#guida .lessonfeature .lessoncontrols.lez3::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:4px;background:linear-gradient(90deg,#009246 0 33.3%,#f4f5f0 33.3% 66.6%,#ce2b37 66.6%);box-shadow:0 0 0 1px #0000000f}
+#guida .lessoncontrols.lez3 button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;font:600 11px/1.1 -apple-system,system-ui,sans-serif;color:#4a5560;letter-spacing:.2px;transition:transform .12s ease}
+#guida .lessoncontrols.lez3 button:active{transform:scale(.94)}
+#guida .lessoncontrols.lez3 .ic{display:grid;place-items:center;border-radius:50%}
+#guida .lessoncontrols.lez3 .sm .ic{width:38px;height:38px;background:#f1f3f5;border:1px solid #dde2e7}
+#guida .lessoncontrols.lez3 .sm svg{width:18px;height:18px}
+#guida .lessoncontrols.lez3 .main .ic{width:52px;height:52px;background:#fff;border:2px solid #2b3640;box-shadow:0 2px 8px #1d2a3322}
+#guida .lessoncontrols.lez3 .main svg{width:22px;height:22px}
+#guida .lessoncontrols.lez3 .main{color:#1d2a33;font-weight:700}
+#guida .lessoncontrols.lez3 .main.on .ic{background:#2b3640}
+body.night #guida .lessoncontrols.lez3 button{color:#c9d3dc}
+body.night #guida .lessoncontrols.lez3 .sm .ic{background:#1d2a33;border-color:#33414d}
+body.night #guida .lessoncontrols.lez3 .main .ic{background:#101b25;border-color:#c9d3dc}
+.vqBar{display:none;position:fixed;z-index:3000;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));gap:10px;justify-content:center}
+.vqBar.on{display:flex}
+.vqBar button{flex:1;max-width:170px;border:2px solid #2b3640;background:#fff;color:#1d2a33;border-radius:14px;padding:12px 0;font:700 16px -apple-system,system-ui,sans-serif;box-shadow:0 4px 14px #0003}
+.vqBar button:active{transform:scale(.97)}
+.addrSug{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border-radius:14px;box-shadow:0 8px 24px #0003;overflow:hidden;max-height:46vh;overflow-y:auto;z-index:1000}
+.addrSug .sugItem{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;width:100%;padding:10px 12px;border-bottom:1px solid #eef1f4;cursor:pointer}
+.addrSug .sugItem:last-child{border-bottom:0}.addrSug .sugItem:active{background:#f1f5f9}
+.addrSug .sugPin{font-size:16px}.addrSug .sugTx{min-width:0}
+.addrSug b{display:block;font:600 15px/1.25 -apple-system,system-ui,sans-serif;color:#15212b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addrSug small{display:block;font:13px/1.25 -apple-system,system-ui,sans-serif;color:#6b7782;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addrSug .sugEmpty{padding:12px;font:14px/1.35 -apple-system,system-ui,sans-serif;color:#4a5560}
 </style>
-<script id="treBottoniScript">
-(function(){const box=document.querySelector('#guida .lessonfeature .lessoncontrols');if(!box)return;box.classList.add('tre');
-const I={lez:'<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z" fill="#fff"/></svg>',
-fer:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.6" fill="#1d2a33"/></svg>',
-ai:'<svg viewBox="0 0 24 24"><path d="M6.6 2.9 9 2.4c.6-.1 1.2.2 1.4.8l1.2 3c.2.5.1 1.1-.4 1.5l-1.6 1.3a12.2 12.2 0 0 0 5.4 5.4l1.3-1.6c.4-.5 1-.6 1.5-.4l3 1.2c.6.2.9.8.8 1.4l-.5 2.4c-.1.7-.7 1.1-1.4 1.1C10.7 18.5 5.5 13.3 5.5 4.3c0-.7.4-1.3 1.1-1.4z" fill="#fff"/></svg>'};
-box.innerHTML='<button class="bLez"><span class="ic">'+I.lez+'</span><span class="lb">Lezione</span></button><button class="bFer"><span class="ic">'+I.fer+'</span><span class="lb">Ferma</span></button><button class="bAI"><span class="ic">'+I.ai+'</span><span class="lb">Chiama AI</span></button>';
-const [L,F,A]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');
-const setAI=on=>{A.classList.toggle('on',on);A.querySelector('.lb').textContent=on?'Chiudi':'Chiama AI'};
-L.onclick=()=>{if(window.callIsOn&&window.callIsOn()){window.toggleCallAI();setAI(false)}const b=st();if(b&&!b.classList.contains('on'))b.click();else window.courseAPI&&window.courseAPI.resume()};
-F.onclick=()=>{if(window.callIsOn&&window.callIsOn()){window.toggleCallAI();setAI(false)}window.appVoice&&window.appVoice.stop();window.courseAPI&&window.courseAPI.stop();try{speechSynthesis.cancel()}catch(e){}};
-A.onclick=()=>{if(!window.toggleCallAI)return;const b=st();setAI(window.toggleCallAI());};
+<script id="bottoniLezioneScript">
+(function(){const box=document.querySelector('#guida .lessonfeature .lessoncontrols');if(!box)return;box.classList.add('lez3');
+const I={play:'<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z" fill="#2b3640"/></svg>',
+stop:'<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="#fff"/></svg>',
+rip:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
+quiz:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b3640" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5l2.2 2.2L16 9"/><rect x="3.5" y="3.5" width="17" height="17" rx="4"/></svg>'};
+box.innerHTML='<button class="sm bRip" aria-label="Ripeti la lezione"><span class="ic">'+I.rip+'</span><span>Ripeti</span></button><button class="main bPlay" aria-label="Ascolta la lezione"><span class="ic">'+I.play+'</span><span class="lb">Ascolta</span></button><button class="sm bQuiz" aria-label="Vai al quiz"><span class="ic">'+I.quiz+'</span><span>Quiz</span></button>';
+const [R,P,Q]=box.querySelectorAll('button'),st=()=>document.querySelector('.bigStart');const C=()=>window.courseAPI;
+const stopAllVoice=()=>{window.appVoice&&window.appVoice.stop();C()&&C().stop();try{speechSynthesis.cancel()}catch(e){}};
+const paint=()=>{const on=!!(C()&&C().isPlaying&&C().isPlaying());P.classList.toggle('on',on);P.querySelector('.ic').innerHTML=on?I.stop:I.play;P.querySelector('.lb').textContent=on?'Ferma':'Ascolta';P.setAttribute('aria-label',on?'Ferma la lezione':'Ascolta la lezione')};
+P.onclick=()=>{if(C()&&C().isPlaying&&C().isPlaying()){stopAllVoice()}else{const b=st();if(b&&!b.classList.contains('on'))b.click();else C()&&C().resume()}setTimeout(paint,150)};
+R.onclick=()=>{const b=st();if(b&&!b.classList.contains('on')){b.click();return}C()&&C().repeat();setTimeout(paint,150)};
+Q.onclick=()=>{stopAllVoice();if(typeof show==='function')show('quiz');setTimeout(paint,150)};
+setInterval(paint,600);paint();
+})();
+</script>
+<script id="quizTocco">
+/* Quiz a fine 5 lezioni: si risponde toccando Vero / Falso (niente microfono) */
+(function(){const VQ=window.VQ;if(!VQ)return;
+const bar=document.createElement('div');bar.className='vqBar';bar.innerHTML='<button type="button">Vero</button><button type="button">Falso</button>';document.body.appendChild(bar);
+const [V,F]=bar.querySelectorAll('button');V.onclick=()=>{if(VQ.active)VQ.handle('vero')};F.onclick=()=>{if(VQ.active)VQ.handle('falso')};
+VQ.arm=function(){clearTimeout(this.waitTimer)};
+setInterval(()=>bar.classList.toggle('on',!!VQ.active),400);
+const p=document.getElementById('micPref');if(p){const row=p.closest('p');if(row)row.remove()}
 })();
 </script>
 </body></html>
