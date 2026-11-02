@@ -107,7 +107,7 @@ let x=`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox
 (hasSign?`<rect x="50" y="110" width="380" height="380" rx="36" fill="#ffffff"/><g transform="translate(-176,105) scale(1.3)">${sg}</g>`:'')+
 `<foreignObject x="${tx}" y="${y0}" width="${1100-tx-60}" height="${560-y0}"><div xmlns="http://www.w3.org/1999/xhtml" style="font:600 27px/1.4 -apple-system,Helvetica,Arial;color:#dbe8f3">${detail}<div style="margin-top:16px;color:#ffffff;font-weight:700">${tip}</div></div></foreignObject></svg>`;
 return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)}
-window._lessonPic=t=>t[6]||card(t);window._lessonRender=()=>render();
+window._lessonPic=t=>t[6]||card(t);window._courseLessons=lessons;window._lessonRender=()=>render();
 function save(){try{localStorage.setItem('img-course-index-v2',String(idx))}catch(e){}}
 function render(){let t=lessons[idx];el('autoMeta').textContent='LEZIONE '+(idx+1)+' DI '+lessons.length+' · '+t[0];el('autoProgress').style.width=((idx+1)/lessons.length*100)+'%';const pic=t[6]||card(t);el('autoPicture').src=pic;const poster=document.getElementById('roundaboutPoster');if(poster){poster.src=pic;poster.alt='Lezione: '+t[0]}const hd=document.querySelector('#guida .lessonhead strong');if(hd)hd.textContent='📖 LEZIONE '+(idx+1)+' · '+t[0].toUpperCase();const hs=document.querySelector('#guida .lessonhead span');if(hs)hs.textContent='di '+lessons.length;const rn=document.querySelector('#guida .reviewnote');if(rn)rn.style.display='none';el('autoPicture').alt='Scheda illustrata: '+t[0];el('autoExplain').textContent=t[5]||(t[2]+' '+t[3]);save()}
 function cancel(){token++;if('speechSynthesis' in window)window.speechSynthesis.cancel()}
@@ -757,4 +757,35 @@ const p=document.getElementById('micPref');if(p){const row=p.closest('p');if(row
 <script id="orizzontaleJS">(function(){const f=()=>{const g=document.getElementById('guida');document.body.classList.toggle('land-guida',!!(g&&g.classList.contains('active')))};f();setInterval(f,700);
 const r=()=>setTimeout(()=>{try{window.map?.invalidateSize?.(true)}catch(e){}window.dispatchEvent(new Event('resize'))},350);
 window.addEventListener('orientationchange',r);try{screen.orientation?.addEventListener('change',r)}catch(e){}})();</script>
+<style id="quizFotoCss">
+#quiz .qPhoto{display:block;width:100%;max-height:44dvh;object-fit:contain;border-radius:16px;background:#f1f4f7;margin:6px 0 10px;box-shadow:0 4px 16px #12294a1a}
+#quiz .qScore{display:flex;justify-content:space-between;font-weight:800;color:#2b4a66;font-size:14px;margin-top:4px}
+#quiz .question{font-size:19px;line-height:1.35}
+@media (orientation:landscape) and (max-height:560px){#quiz .content{display:grid;grid-template-columns:48% 1fr;gap:14px;align-items:start}#quiz .content>h2,#quiz .content>p:not(.question){grid-column:1/-1;margin:4px 0}#quiz .qPhoto{grid-row:span 6;max-height:70dvh}}
+</style>
+<script id="quizFoto">
+(function(){const L=(window._courseLessons||[]).filter(t=>t[6]&&t[7]!==1);if(L.length<10||typeof window.renderQuestion!=='function')return;
+const $=id=>document.getElementById(id);const pic=t=>window._lessonPic(t);
+const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const sent=t=>((t[5]||'')+' '+(t[2]||'')+' '+(t[3]||'')).match(/[^.!?]+[.!?]/g)?.map(x=>x.trim()).filter(x=>x.length>35&&x.length<170&&!/^(ricapitoliamo|ripeto|ecco|oggi|lezione|guarda|ascolta|vediamo|allora|bene)/i.test(x)&&!/\b(foto|immagine|lezione|oggi|qui|questa volta|come prima|trucco|ricordare|ricorda|immagina)\b/i.test(x)&&!/^(anche|e |ma |poi|quindi|per questo|questo|questa|questi|queste|cio|così|insomma|infatti)/i.test(x))||[];
+function build(){const out=[];shuf(L.slice()).forEach((t,k)=>{const r=k%3;
+  if(r===0)out.push({t,q:'La figura mostra: '+t[0]+'.',a:true,why:'Esatto, è proprio '+t[0]+'.'});
+  else if(r===1){const ix=L.indexOf(t);let o=L.filter((x,j)=>x!==t&&x[0]!==t[0]&&Math.abs(j-ix)<=6);if(!o.length)o=L.filter(x=>x!==t);const w=o[Math.floor(Math.random()*o.length)];out.push({t,q:'La figura mostra: '+w[0]+'.',a:false,why:'No, questo è '+t[0]+', non '+w[0]+'.'})}
+  else{const ss=sent(t);if(ss.length){out.push({t,q:shuf(ss)[0].replace(/[.!?]$/,'')+'.',a:true,why:'È giusto: è quello che si studia per '+t[0]+'.'})}else out.push({t,q:'La figura mostra: '+t[0]+'.',a:true,why:'Esatto, è proprio '+t[0]+'.'})}});
+ return out.slice(0,30)}
+let list=build(),i=0,err=0,ans=false,done=false;
+const box=$('quiz').querySelector('.content');const intro=box.querySelector('p');if(intro)intro.textContent='30 domande con la foto, come all\'esame: si passa con massimo 3 errori.';
+const img=document.createElement('img');img.className='qPhoto';img.alt='';$('quizQuestion').before(img);
+const sc=document.createElement('div');sc.className='qScore';$('quizCounter').replaceWith(sc);sc.id='quizCounter';
+function render(){done=false;ans=false;const q=list[i];img.src=pic(q.t);img.alt='Foto: '+q.t[0];
+ sc.innerHTML='<span>Domanda '+(i+1)+' di '+list.length+'</span><span>Errori: '+err+'</span>';$('quizQuestion').textContent=q.q;
+ $('feedback').style.display='none';$('answers').innerHTML='<button class="choice" onclick="choose(true,this)">VERO</button><button class="choice" onclick="choose(false,this)">FALSO</button>'}
+window.renderQuestion=render;
+window.choose=function(v,el){if(ans||done)return;ans=true;const q=list[i];const ok=v===q.a;if(!ok)err++;el.classList.add(ok?'correct':'wrong');
+ sc.lastChild.textContent='Errori: '+err;const f=$('feedback');f.style.display='block';f.textContent=(ok?'✓ Giusto. ':'✗ Sbagliato. La risposta è '+(q.a?'VERO':'FALSO')+'. ')+q.why};
+window.nextQuestion=function(){if(done){list=build();i=0;err=0;render();return}
+ if(i>=list.length-1){done=true;const f=$('feedback');f.style.display='block';f.textContent=err<=3?'🎉 Quiz finito: '+err+' errori su '+list.length+'. SUPERATO! Tocca "Prossima domanda" per un quiz nuovo.':'Quiz finito: '+err+' errori su '+list.length+'. All\'esame il massimo è 3: questa volta non è superato. Tocca "Prossima domanda" per riprovare.';$('answers').innerHTML='';$('quizQuestion').textContent='';return}
+ i++;render()};
+render();})();
+</script>
 </body></html>
