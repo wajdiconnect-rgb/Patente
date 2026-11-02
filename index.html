@@ -297,7 +297,7 @@ function checkSpeed(){let best=null,bd=30;for(const w of ways){const d=lineDist(
  if(best)limit=best.lim;else if(poiCenter&&dist(poiCenter,pos)<400)limit=null;
  limitSign.textContent=limit||'—';limitSign.classList.toggle('known',!!limit);
  const over=limit&&speedKmh>limit+3;document.querySelector('.mapbottom .speed')?.classList.toggle('over',!!over);
- if(over){const now=Date.now();if(now-lastBeep>3000){beep();lastBeep=now}if(now-lastOverSay>45000){lastOverSay=now;Voice.say('Attenzione, stai superando il limite di '+limit+' chilometri orari. Rallenta.')}}}
+ if(over){const now=Date.now();if(now-lastBeep>3000){beep();lastBeep=now}}}
 
 /* ---------- L'istruttore: avvisi a voce su quello che c'è sulla strada ---------- */
 const TIPS={
@@ -317,8 +317,7 @@ function checkAlerts(){if(!pos||heading==null||speedKmh<8||!started)return;const
  const [p,d]=cand[0];
  for(const q of pois)if(q.type===p.type&&dist([q.lat,q.lon],[p.lat,p.lon])<90)q.said=true;
  const cool={crossing:45000,signals:25000,bump:30000}[p.type]||0;if(lastType[p.type]&&now-lastType[p.type]<cool)return;lastType[p.type]=now;
- const t=TIPS[p.type];const text=Array.isArray(t)?t[(tipN++)%t.length](d,p):t(d,p);if(p.type==='camera')beep();
- Voice.say(text,p.type==='camera');msg(text)}
+ const t=TIPS[p.type];const text=Array.isArray(t)?t[(tipN++)%t.length](d,p):t(d,p);if(p.type==='camera')beep();}
 
 /* ---------- Navigatore: percorso, frecce e voce ---------- */
 let route=null,routeGeo=null,steps=[],si=0,dest=null,destName='',offCount=0,lastReroute=0;
@@ -353,8 +352,8 @@ async function begin(address){
   wrap.classList.add('route-active');document.activeElement?.blur();ensure3D(here);if(LM()&&routeLine){try{LM().fitBounds(routeLine.getBounds(),{padding:[30,30]})}catch(e){}}
   const km=(rt.distance/1000).toFixed(1).replace('.',','),min=Math.round(rt.duration/60);
   msg('Percorso: '+km+' km · circa '+min+' minuti');banner.style.display='flex';updateBanner();
-  Voice.say('Percorso calcolato verso '+address+'. '+km+' chilometri, circa '+min+' minuti. '+cap(stepText(steps[Math.min(1,steps.length-1)].s))+' tra '+roundM(dist(here,steps[Math.min(1,steps.length-1)].loc))+'. Guida con prudenza e non toccare il telefono.',true);refresh();
- }catch(err){msg('Impossibile avviare: '+(err.message||'controlla GPS e connessione'),true);Voice.say('Non riesco a calcolare il percorso. '+(err.message||''))}
+  mapSilent('Percorso calcolato verso '+address+'. '+km+' chilometri, circa '+min+' minuti. '+cap(stepText(steps[Math.min(1,steps.length-1)].s))+' tra '+roundM(dist(here,steps[Math.min(1,steps.length-1)].loc))+'. Guida con prudenza e non toccare il telefono.',true);refresh();
+ }catch(err){msg('Impossibile avviare: '+(err.message||'controlla GPS e connessione'),true);mapSilent('Non riesco a calcolare il percorso. '+(err.message||''))}
  finally{button.disabled=false;button.textContent='▶ PARTI'}}
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 function updateEta(){if(!route||!pos||!route.cum)return;let bi=0,bd=Infinity;for(let i=0;i<route.pts.length;i++){const d=dist(pos,route.pts[i]);if(d<bd){bd=d;bi=i}}
@@ -363,19 +362,19 @@ function updateEta(){if(!route||!pos||!route.cum)return;let bi=0,bd=Infinity;for
  $('navEtaKm').textContent=left<1000?Math.round(left/10)*10+' m':(left/1000).toFixed(1).replace('.',',')+' km';route.left=left;route.eta=at}
 function updateBanner(){if(!route||!steps[si])return;updateEta();const st=steps[si],d=pos?dist(pos,st.loc):0;$('navDist').textContent=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1).replace('.',',')+' km';$('navText').textContent=cap(stepText(st.s));
  const m=st.s.maneuver;$('navArrow').textContent=m.type==='arrive'?'🏁':(m.type==='roundabout'||m.type==='rotary')?'⟳':(ARROW[m.modifier]||'⬆')}
-let lastNavSay=0;
+let lastNavSay=0;function mapSilent(){}
 function trackRoute(){const st=steps[si];if(!st)return;const d=dist(pos,st.loc);const fast=speedKmh>70;
- if(d>1500&&Date.now()-lastNavSay>240000&&!Voice.busy&&route.eta){lastNavSay=Date.now();Voice.say('Prosegui per '+roundM(d)+'. Arrivo previsto alle '+route.eta.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+'.')}
- if(st.s.maneuver.type==='arrive'&&d<35){Voice.say('Sei arrivato a destinazione. Bravo.',true);endRoute(true);return}
- if(!st.far&&d<=(fast?900:350)&&d>(fast?250:90)){st.far=true;lastNavSay=Date.now();let t='Tra '+roundM(d)+', '+stepText(st.s)+'.';if(st.s.maneuver.type==='roundabout'&&!window._rotTip){window._rotTip=1;t+=' Ricorda: se c\'è il dare precedenza, lascia passare chi è già nella rotatoria, e metti la freccia a destra per uscire.'}Voice.say(t)}
- if(!st.near&&d<=(fast?220:70)){st.near=st.far=true;Voice.say('Ora, '+stepText(st.s)+'.',true)}
+ if(d>1500&&Date.now()-lastNavSay>240000&&!Voice.busy&&route.eta){lastNavSay=Date.now();mapSilent('Prosegui per '+roundM(d)+'. Arrivo previsto alle '+route.eta.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+'.')}
+ if(st.s.maneuver.type==='arrive'&&d<35){mapSilent('Sei arrivato a destinazione. Bravo.',true);endRoute(true);return}
+ if(!st.far&&d<=(fast?900:350)&&d>(fast?250:90)){st.far=true;lastNavSay=Date.now();let t='Tra '+roundM(d)+', '+stepText(st.s)+'.';if(st.s.maneuver.type==='roundabout'&&!window._rotTip){window._rotTip=1;t+=' Ricorda: se c\'è il dare precedenza, lascia passare chi è già nella rotatoria, e metti la freccia a destra per uscire.'}mapSilent(t)}
+ if(!st.near&&d<=(fast?220:70)){st.near=st.far=true;mapSilent('Ora, '+stepText(st.s)+'.',true)}
  if(d<20||(st.near&&prevPos&&dist(prevPos,st.loc)<d&&d<60)){si++;}
  updateBanner();
  const off=lineDist(pos,route.pts);if(off>55&&lastAcc<40)offCount++;else offCount=0;
- if(offCount>=3&&Date.now()-lastReroute>20000){offCount=0;lastReroute=Date.now();Voice.say('Ricalcolo il percorso.');getRoute(pos,dest).then(applyRoute).catch(()=>{})}}
+ if(offCount>=3&&Date.now()-lastReroute>20000){offCount=0;lastReroute=Date.now();mapSilent('Ricalcolo il percorso.');getRoute(pos,dest).then(applyRoute).catch(()=>{})}}
 function endRoute(quiet){route=null;steps=[];dest=null;banner.style.display='none';wrap.classList.remove('route-active');
  if(LM()){if(routeLine){LM().removeLayer(routeLine);routeLine=null}if(destinationPin){LM().removeLayer(destinationPin);destinationPin=null}}
- if(ml?.getSource('route'))ml.getSource('route').setData({type:'FeatureCollection',features:[]});if(!quiet)Voice.say('Navigazione terminata.');refresh()}
+ if(ml?.getSource('route'))ml.getSource('route').setData({type:'FeatureCollection',features:[]});if(!quiet)mapSilent('Navigazione terminata.');refresh()}
 form.addEventListener('submit',e=>{e.preventDefault();const a=$('destinationAddress').value.trim();if(a)begin(a)});
 $('cameraQuick').addEventListener('click',()=>{if(typeof startCamera==='function')startCamera()});
 endButton.addEventListener('click',()=>endRoute());$('navClose').addEventListener('click',()=>endRoute());
@@ -481,14 +480,14 @@ async function askAI(question,withPhoto){if(!aiKey()){micLabel('🤖 Manca la ch
   const ans=await claude(msgs,SYS_TALK(),400);chat.push({role:'assistant',content:ans});const box=$('aiAnswer');if(box)box.textContent=ans;micLabel('🤖 '+ans);Voice.say(ans,true,true)}
  catch(e){chat.pop();micLabel('🤖 Non riesco a rispondere: '+e.message);Voice.say('Non riesco a rispondere: '+e.message+'.',true)}finally{window.aiBusy=false}}
 window.askAI=askAI;
-let signBusy=false,lastSign=0;const seenSign={};
+let signBusy=false,lastSign=0;let seenSign={};try{seenSign=JSON.parse(localStorage.getItem('ppi-signs-said')||'{}')}catch(e){}
 const SYS_SIGN='Guardi le foto della telecamera di un\'auto in Italia per un\'app di scuola guida. Rispondi SOLO con JSON valido, senza altro testo.';
-setInterval(async()=>{if(!started||!aiKey()||!aiSignsOn()||signBusy||document.hidden||window.aiBusy)return;const now=Date.now();if(now-lastSign<(isGemini()?(speedKmh>8?12000:30000):(speedKmh>8?6000:20000)))return;
+setInterval(async()=>{if(!started||!aiKey()||!aiSignsOn()||signBusy||document.hidden||window.aiBusy)return;const now=Date.now();if(now-lastSign<180000)return;
  const img=frame(640);if(!img)return;signBusy=true;lastSign=now;
- try{const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Elenca solo i cartelli stradali verticali vicini e chiaramente leggibili in questa foto (ignora quelli lontani, sfocati o incerti, e ignora le auto). Formato: {"cartelli":[{"nome":"nome ufficiale italiano del cartello","spiegazione":"una o due frasi semplici su cosa deve fare il conducente"}]}. Se non vedi cartelli con sicurezza: {"cartelli":[]}'}]}],SYS_SIGN,300,true);
+ try{const txt=await claude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Guarda i cartelli stradali verticali vicini e chiaramente leggibili in questa foto. Scegli AL MASSIMO UNO: solo se è un cartello importante e difficile per l\'esame di teoria della patente B italiana (per esempio precedenze, divieti particolari, obblighi, pericoli meno comuni, pannelli integrativi). Ignora i cartelli banali o molto comuni (nomi di vie, indicazioni di direzione, pubblicità, parcheggio semplice, limite 50 in città), quelli lontani, sfocati o incerti, e ignora le auto. Formato: {"cartelli":[{"nome":"nome ufficiale italiano del cartello","spiegazione":"due o tre frasi semplici, come un istruttore: cosa significa e cosa deve fare il conducente, e perché all\'esame è importante"}]}. Se non c\'è un cartello così: {"cartelli":[]}'}]}],SYS_SIGN,300,true);
   const m=txt.match(/\{[\s\S]*\}/);const j=m?JSON.parse(m[0]):{cartelli:[]};
-  for(const c of (j.cartelli||[]).slice(0,2)){if(!c||!c.nome)continue;const k=norm(c.nome);if(seenSign[k]&&now-seenSign[k]<120000)continue;seenSign[k]=now;
-   const t='Vedo un cartello: '+c.nome+'. '+(c.spiegazione||'');msg('📷 '+c.nome);Voice.say(t)}}
+  for(const c of (j.cartelli||[]).slice(0,1)){if(!c||!c.nome)continue;const k=norm(c.nome);if(seenSign[k])continue;seenSign[k]=now;try{localStorage.setItem('ppi-signs-said',JSON.stringify(seenSign))}catch(e){}
+   Voice.say('Guarda, hai visto questo cartello? È '+c.nome+'. '+(c.spiegazione||''))}}
  catch(e){if(/chiave|credito|limite/.test(e.message))msg('Lettura cartelli: '+e.message)}finally{signBusy=false}},1000);
 // impostazioni nella pagina Voce
 (function(){const v=$('voce')?.querySelector('.content');if(!v)return;const box=document.createElement('div');box.className='note';
@@ -514,7 +513,7 @@ async function startAll(fromNav){if(started)return;started=true;unlockAudio();ke
  if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');speechSynthesis.speak(u)}
  startMic();setTimeout(()=>{if(started)camStart(false)},1500);const gps=startGPS().then(p=>{if(p)ensure3D(p);return p});
  if(fromNav)await gps;
- if(!fromNav){Voice.say('Ciao! Partiamo. Io ti spiego le lezioni piano piano, e ti avviso di autovelox, semafori, STOP e limiti di velocità. Tieni le mani sul volante. Alla fine di ogni lezione faccio una pausa: lì puoi farmi una domanda, oppure dire ripeti, avanti o ferma.',true);
+ if(!fromNav){Voice.say('Ciao! Partiamo. Tieni le mani sul volante. Quando vuoi, fammi una domanda.',true);
   setTimeout(()=>{window.courseAPI?.play()},300)}}
 function stopAll(){started=false;bigStart.classList.remove('on');bigStart.innerHTML='▶ AVVIA';try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}Voice.stop();window.courseAPI?.stop();stopMic();stopGPS();endRoute(true);hide3D();try{wakeLock?.release()}catch(e){}
  if(userDot&&LM()){LM().removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
@@ -572,9 +571,9 @@ html,body,.shell{max-width:100vw;overflow-x:hidden}
 </style><style id="fixNov2">
 #guida .maptop{justify-content:flex-end!important}#guida .maptop .camera{margin-left:auto}
 .bigStart.on{width:44px!important;height:44px!important;font-size:18px!important;border:3px solid #e0262f}
-.micBtn{position:absolute;z-index:905;left:60px;bottom:64px;width:44px;height:44px;border-radius:50%;border:0;background:#0a8a5f;color:#fff;font-size:21px;box-shadow:0 3px 12px #0006}
-.voiceBtn{position:absolute;z-index:905;left:112px;bottom:64px;border:0;border-radius:50%;width:44px;height:44px;background:#fff;color:#123;font-size:20px;padding:0;box-shadow:0 3px 12px #0004}
+.micBtn{display:none!important;position:absolute;z-index:905;left:60px;bottom:64px;width:44px;height:44px;border-radius:50%;border:0;background:#0a8a5f;color:#fff;font-size:21px;box-shadow:0 3px 12px #0006}
+.voiceBtn{position:absolute;z-index:905;left:60px;bottom:64px;border:0;border-radius:50%;width:44px;height:44px;background:#fff;color:#123;font-size:20px;padding:0;box-shadow:0 3px 12px #0004}
 .heardChip{display:none!important;left:112px!important;right:120px;bottom:66px!important;max-width:none!important;font-size:14px!important;font-weight:700;color:#0d2236!important;background:#fff!important;border:2px solid #0a8a5f;border-radius:12px!important;padding:6px 10px!important;white-space:normal!important;max-height:70px;overflow:hidden;line-height:1.25;box-shadow:0 3px 12px #0004}
 body.night .heardChip{background:#101f32!important;color:#fff!important}
-.bigStart:not(.on)~.micBtn{left:104px}.bigStart:not(.on)~.voiceBtn{left:156px}
+.bigStart:not(.on)~.voiceBtn{left:104px}
 </style></body></html>
