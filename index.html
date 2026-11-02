@@ -99,7 +99,7 @@ function render(){let t=lessons[idx];el('autoMeta').textContent='LEZIONE '+(idx+
 function cancel(){token++;if('speechSynthesis' in window)window.speechSynthesis.cancel()}
 function speak(){if(!playing||paused||held)return;let my=++token,t=lessons[idx];if(!('speechSynthesis' in window)){el('autoHint').textContent='Questo browser non supporta la sintesi vocale.';playing=false;return}window.speechSynthesis.cancel();const p=parts(t);
 if(chunk>=p.length){chunk=0;if(idx<lessons.length-1){idx++;render();el('autoHint').textContent='Breve pausa, poi la prossima lezione.';setTimeout(()=>{if(my===token)speak()},3000)}else{playing=false;el('autoHint').textContent='Corso completato! Di\' quiz per allenarti, oppure premi Ricomincia.';el('autoPlay').textContent='▶ Ripeti'}return}
-const u=new SpeechSynthesisUtterance(p[chunk]);u.lang='it-IT';u.pitch=1;u.onend=()=>{if(my!==token||!playing||paused||held)return;chunk++;setTimeout(()=>{if(my===token)speak()},700)};u.onerror=e=>{if(my!==token)return;if(e&&(e.error==='interrupted'||e.error==='canceled'))return;playing=false;el('autoHint').textContent='Audio interrotto dal browser. Premi Avvia corso per riprendere.'};
+const u=new SpeechSynthesisUtterance(p[chunk]);u.lang='it-IT';u.pitch=1;u.onend=()=>{if(my!==token||!playing||paused||held)return;chunk++;const go=()=>{if(my!==token)return;if(window.userTalking&&window.userTalking()){setTimeout(go,600);return}speak()};setTimeout(go,1300)};u.onerror=e=>{if(my!==token)return;if(e&&(e.error==='interrupted'||e.error==='canceled'))return;playing=false;el('autoHint').textContent='Audio interrotto dal browser. Premi Avvia corso per riprendere.'};
 setTimeout(()=>{if(my===token)window.speechSynthesis.speak(u)},60);el('autoHint').textContent='Lezione in corso, piano piano. Frase '+(chunk+1)+' di '+p.length+'. Di\' ferma per fermare.';el('autoPlay').textContent='▶ Continua'}
 el('autoPlay').onclick=()=>{playing=true;paused=false;el('autoPause').textContent='⏸ Pausa';speak()};el('autoPause').onclick=()=>{if(!playing)return;if(!paused){paused=true;cancel();el('autoPause').textContent='▶ Riprendi'}else{paused=false;el('autoPause').textContent='⏸ Pausa';speak()}};
 function move(n){cancel();idx=Math.max(0,Math.min(lessons.length-1,idx+n));chunk=0;render();if(playing&&!paused)speak()}
@@ -153,6 +153,7 @@ const posterZoom=document.getElementById('roundaboutPoster');if(posterZoom){post
 'use strict';
 const wrap=document.querySelector('.mapwrap');if(!wrap)return;
 const $=id=>document.getElementById(id);
+const LM=()=>{try{return (typeof map!=='undefined'&&map)?map:null}catch(e){return null}};
 const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
 /* ---------- VOCE: lenta, italiana, uguale per tutta l'app ---------- */
@@ -165,11 +166,12 @@ let chosenVoice=store.get('voice-name','');
 function pickVoice(){const vs=speechSynthesis.getVoices();return vs.find(v=>v.name===chosenVoice)||vs.find(v=>/it[-_]IT/i.test(v.lang)&&/(enhanced|premium|migliorata)/i.test(v.name))||vs.find(v=>/it[-_]IT/i.test(v.lang))||vs.find(v=>v.lang.startsWith('it'))||null}
 if('speechSynthesis' in window){
  const nativeSpeak=speechSynthesis.speak.bind(speechSynthesis);
- speechSynthesis.speak=function(u){try{u.rate=getRate();u.lang='it-IT';const v=pickVoice();if(v)u.voice=v}catch(e){}return nativeSpeak(u)};
+ speechSynthesis.speak=function(u){try{u.rate=getRate();u.lang='it-IT';const v=pickVoice();if(v)u.voice=v}catch(e){}
+  try{window.micSuspend?.();const back=()=>setTimeout(()=>window.micResume?.(),250);u.addEventListener('end',back);u.addEventListener('error',back)}catch(e){}return nativeSpeak(u)};
  // menu per scegliere la voce, nella pagina Voce
  const fillVoices=()=>{const box=$('voicePicker');if(!box)return;const vs=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('it'));box.innerHTML='<option value="">Voce italiana automatica</option>'+vs.map(v=>`<option ${v.name===chosenVoice?'selected':''}>${v.name}</option>`).join('')};
  const voiceView=$('voce')?.querySelector('.content');
- if(voiceView&&rateInput){const lab=document.createElement('p');lab.innerHTML='<label>Scegli la voce: <select id="voicePicker" style="font-size:15px;padding:6px;max-width:100%"></select></label>';rateInput.after(lab);$('voicePicker').onchange=e=>{chosenVoice=e.target.value;store.set('voice-name',chosenVoice)};fillVoices();speechSynthesis.onvoiceschanged=fillVoices}
+ if(voiceView&&rateInput){const sw=document.createElement('p');sw.innerHTML='<label style="font-weight:700"><input type="checkbox" id="micPref" '+(store.get('mic-on','1')==='1'?'checked':'')+'> Comandi vocali con il microfono</label><br><small>Se l\'iPhone non parla quando il microfono è acceso, togli questa spunta.</small>';rateInput.after(sw);sw.querySelector('input').onchange=e=>store.set('mic-on',e.target.checked?'1':'0');const lab=document.createElement('p');lab.innerHTML='<label>Scegli la voce: <select id="voicePicker" style="font-size:15px;padding:6px;max-width:100%"></select></label>';rateInput.after(lab);$('voicePicker').onchange=e=>{chosenVoice=e.target.value;store.set('voice-name',chosenVoice)};fillVoices();speechSynthesis.onvoiceschanged=fillVoices}
 }
 
 /* ---------- Voce degli avvisi: ferma la lezione, parla, poi la lezione riparte ---------- */
@@ -199,7 +201,7 @@ const heard=document.createElement('div');heard.className='heardChip';heard.id='
 const limitSign=document.createElement('div');limitSign.className='limitSign';limitSign.id='limitSign';limitSign.textContent='—';
 document.querySelector('.mapbottom .speed')?.after(limitSign);
 let msgTimer=null;const msg=(t,keep)=>{status.textContent=t;status.style.display='block';clearTimeout(msgTimer);if(!keep)msgTimer=setTimeout(()=>status.style.display='none',7000)};
-const refresh=()=>{if(window.map?.invalidateSize)setTimeout(()=>window.map.invalidateSize(true),180);if(ml)setTimeout(()=>ml.resize(),200)};
+const refresh=()=>{if(LM()?.invalidateSize)setTimeout(()=>LM().invalidateSize(true),180);if(ml)setTimeout(()=>ml.resize(),200)};
 
 /* ---------- Geometria ---------- */
 const R=6371000,rad=x=>x*Math.PI/180;
@@ -246,7 +248,7 @@ function showPoiMarkers(){if(!ml||!window.maplibregl)return;poiMarkers.forEach(m
 
 /* ---------- Leaflet (mappa normale, come prima) ---------- */
 let routeLine=null,destinationPin=null,userDot=null;
-function leafletFollow(pos){if(!window.map||!window.L)return;if(!userDot)userDot=L.circleMarker(pos,{radius:9,color:'#fff',weight:3,fillColor:'#1479e5',fillOpacity:1}).addTo(window.map);else userDot.setLatLng(pos);if(!ml)window.map.setView(pos,Math.max(window.map.getZoom(),17),{animate:true})}
+function leafletFollow(pos){if(!LM()||!window.L)return;if(!userDot)userDot=L.circleMarker(pos,{radius:9,color:'#fff',weight:3,fillColor:'#1479e5',fillOpacity:1}).addTo(LM());else userDot.setLatLng(pos);if(!ml)LM().setView(pos,Math.max(LM().getZoom(),17),{animate:true})}
 
 /* ---------- GPS ---------- */
 let watchId=null,pos=null,prevPos=null,heading=null,speedKmh=0,lastAcc=99;
@@ -317,7 +319,8 @@ function checkAlerts(){if(!pos||heading==null||speedKmh<8||!started)return;const
 
 /* ---------- Navigatore: percorso, frecce e voce ---------- */
 let route=null,routeGeo=null,steps=[],si=0,dest=null,destName='',offCount=0,lastReroute=0;
-async function geocode(address){let vb='';if(pos)vb='&viewbox='+(pos[1]-0.6)+','+(pos[0]+0.6)+','+(pos[1]+0.6)+','+(pos[0]-0.6);
+async function geocode(address){try{return await geocodeNom(address)}catch(e){const r=await fetch('https://photon.komoot.io/api/?limit=1&lang=it&q='+encodeURIComponent(address)+(pos?'&lat='+pos[0]+'&lon='+pos[1]:''));if(!r.ok)throw e;const j=await r.json();const f=j.features?.[0];if(!f)throw new Error('indirizzo non trovato. Prova con via, numero e città.');return [f.geometry.coordinates[1],f.geometry.coordinates[0]]}}
+async function geocodeNom(address){let vb='';if(pos)vb='&viewbox='+(pos[1]-0.6)+','+(pos[0]+0.6)+','+(pos[1]+0.6)+','+(pos[0]-0.6);
  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&accept-language=it'+vb+'&q='+encodeURIComponent(address));if(!r.ok)throw new Error('ricerca indirizzo non disponibile');
  const d=await r.json();if(!d.length)throw new Error('indirizzo non trovato. Prova con via e città.');return [Number(d[0].lat),Number(d[0].lon)]}
 const ORD=['','prima','seconda','terza','quarta','quinta','sesta','settima','ottava'];
@@ -331,17 +334,20 @@ function stepText(s){const m=s.maneuver,mod=MOD[m.modifier]||'',name=s.name?(' i
   case 'merge':return 'immettiti '+mod+name;case 'on ramp':return 'prendi la rampa '+mod+name;case 'off ramp':return 'prendi l\'uscita '+mod+name;
   case 'fork':return 'al bivio tieni '+mod+name;case 'end of road':return 'alla fine della strada gira '+mod+name;
   default:return m.modifier==='uturn'?'fai inversione a U':m.modifier==='straight'?'prosegui dritto'+name:'gira '+mod+name}}
-async function getRoute(o,d){const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+o[1]+','+o[0]+';'+d[1]+','+d[0]+'?overview=full&geometries=geojson&steps=true');if(!r.ok)throw new Error('servizio percorsi non disponibile');
- const j=await r.json();if(j.code!=='Ok'||!j.routes?.length)throw new Error('nessun percorso trovato');return j.routes[0]}
+async function getRoute(o,d){const q=o[1]+','+o[0]+';'+d[1]+','+d[0]+'?overview=full&geometries=geojson&steps=true';let last=null;
+ for(const base of ['https://router.project-osrm.org/route/v1/driving/','https://routing.openstreetmap.de/routed-car/route/v1/driving/']){try{const r=await fetch(base+q);if(!r.ok)throw new Error('servizio percorsi non disponibile');const j=await r.json();if(j.code==='Ok'&&j.routes?.length)return j.routes[0];last=new Error('nessun percorso trovato')}catch(e){last=e}}
+ throw last||new Error('servizio percorsi non disponibile')}
+function waitPos(ms){return new Promise(res=>{if(pos)return res(pos);const t0=Date.now();const iv=setInterval(()=>{if(pos||Date.now()-t0>ms){clearInterval(iv);res(pos)}},300);
+ navigator.geolocation?.getCurrentPosition(p=>{if(!pos){pos=[p.coords.latitude,p.coords.longitude];pos.t=p.timestamp}},()=>{},{enableHighAccuracy:false,maximumAge:120000,timeout:15000})})}
 function applyRoute(rt){route=rt;routeGeo={type:'Feature',geometry:rt.geometry};route.pts=rt.geometry.coordinates.map(c=>[c[1],c[0]]);route.cum=[0];for(let i=1;i<route.pts.length;i++)route.cum.push(route.cum[i-1]+dist(route.pts[i-1],route.pts[i]));
  steps=rt.legs[0].steps.map(s=>({s,loc:[s.maneuver.location[1],s.maneuver.location[0]],far:false,near:false}));si=1;
  if(ml?.getSource('route'))ml.getSource('route').setData(routeGeo);
- if(window.map&&window.L){if(routeLine)window.map.removeLayer(routeLine);routeLine=L.geoJSON(rt.geometry,{style:{color:'#176ad4',weight:7,opacity:.9}}).addTo(window.map);if(destinationPin)window.map.removeLayer(destinationPin);destinationPin=L.marker(dest).addTo(window.map)}}
+ if(LM()&&window.L){if(routeLine)LM().removeLayer(routeLine);routeLine=L.geoJSON(rt.geometry,{style:{color:'#176ad4',weight:7,opacity:.9}}).addTo(LM());if(destinationPin)LM().removeLayer(destinationPin);destinationPin=L.marker(dest).addTo(LM())}}
 async function begin(address){
  const button=$('startNavigation');button.disabled=true;button.textContent='Attendi…';msg('Cerco la destinazione…',true);
- try{unlockAudio();if(!started)await startAll(true);const here=pos||await startGPS();if(!here)throw new Error('serve la posizione GPS');
+ try{unlockAudio();if(!started)await startAll(true);if(watchId===null)startGPS();msg('Cerco la tua posizione GPS…',true);const here=await waitPos(20000);if(!here)throw new Error('non trovo la tua posizione. Controlla che Safari possa usare la posizione (Impostazioni › Privacy › Localizzazione).');msg('Cerco la destinazione…',true);
   dest=await geocode(address);destName=address;const rt=await getRoute(here,dest);applyRoute(rt);
-  wrap.classList.add('route-active');document.activeElement?.blur();await ensure3D(here);
+  wrap.classList.add('route-active');document.activeElement?.blur();ensure3D(here);if(LM()&&routeLine){try{LM().fitBounds(routeLine.getBounds(),{padding:[30,30]})}catch(e){}}
   const km=(rt.distance/1000).toFixed(1).replace('.',','),min=Math.round(rt.duration/60);
   msg('Percorso: '+km+' km · circa '+min+' minuti');banner.style.display='flex';updateBanner();
   Voice.say('Percorso calcolato verso '+address+'. '+km+' chilometri, circa '+min+' minuti. '+cap(stepText(steps[Math.min(1,steps.length-1)].s))+' tra '+roundM(dist(here,steps[Math.min(1,steps.length-1)].loc))+'. Guida con prudenza e non toccare il telefono.',true);refresh();
@@ -363,7 +369,7 @@ function trackRoute(){const st=steps[si];if(!st)return;const d=dist(pos,st.loc);
  const off=lineDist(pos,route.pts);if(off>55&&lastAcc<40)offCount++;else offCount=0;
  if(offCount>=3&&Date.now()-lastReroute>20000){offCount=0;lastReroute=Date.now();Voice.say('Ricalcolo il percorso.');getRoute(pos,dest).then(applyRoute).catch(()=>{})}}
 function endRoute(quiet){route=null;steps=[];dest=null;banner.style.display='none';wrap.classList.remove('route-active');
- if(window.map){if(routeLine){window.map.removeLayer(routeLine);routeLine=null}if(destinationPin){window.map.removeLayer(destinationPin);destinationPin=null}}
+ if(LM()){if(routeLine){LM().removeLayer(routeLine);routeLine=null}if(destinationPin){LM().removeLayer(destinationPin);destinationPin=null}}
  if(ml?.getSource('route'))ml.getSource('route').setData({type:'FeatureCollection',features:[]});if(!quiet)Voice.say('Navigazione terminata.');refresh()}
 form.addEventListener('submit',e=>{e.preventDefault();const a=$('destinationAddress').value.trim();if(a)begin(a)});
 $('cameraQuick').addEventListener('click',()=>{if(typeof startCamera==='function')startCamera()});
@@ -376,16 +382,20 @@ window.openWaze=()=>$('destinationAddress').focus();
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,micOn=false;
 function showHeard(t){heard.textContent='🎙️ '+t;heard.style.display='block'}
 function micLabel(t){heard.textContent=t;heard.style.display='block'}
-function startMic(){if(!SR){micLabel('🎙️ Comandi vocali non disponibili in questo browser: usa Safari aggiornato');return}if(micOn)return;micOn=true;spawnRec()}
-function spawnRec(){if(!micOn)return;let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');return}rec=r;
+function startMic(){if(!micPrefOn()){micLabel('🎙️ Comandi vocali spenti (pagina Voce)');return}if(!SR){micLabel('🎙️ Comandi vocali non disponibili in questo browser: usa Safari aggiornato');return}if(micOn)return;micOn=true;spawnRec()}
+function spawnRec(){if(!micOn||micPaused)return;let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');return}rec=r;
  r.lang='it-IT';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;let last='',done=false,timer=null;
  const fire=()=>{if(done||!last.trim())return;done=true;command(last)};
  r.onstart=()=>micLabel('🎙️ Ti ascolto');
- r.onresult=e=>{let txt='';for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;last=txt;clearTimeout(timer);
+ r.onresult=e=>{userTalkAt=Date.now();let txt='';for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;last=txt;clearTimeout(timer);
   const fin=e.results[e.results.length-1].isFinal;if(fin||/(^| )(ferma|fermati|basta|pausa)( |$)/i.test(txt))fire();else timer=setTimeout(()=>{fire();try{r.stop()}catch(_){}},1300)};
  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){micOn=false;micLabel('🎙️ Microfono bloccato: Impostazioni › Generali › Tastiera › attiva Dettatura, poi consenti il microfono a Safari e premi di nuovo AVVIA')}};
- r.onend=()=>{clearTimeout(timer);fire();if(micOn&&rec===r)setTimeout(spawnRec,document.hidden?2000:250)};
+ r.onend=()=>{clearTimeout(timer);fire();if(micOn&&!micPaused&&rec===r)setTimeout(spawnRec,document.hidden?2000:250)};
  try{r.start()}catch(e){setTimeout(spawnRec,1000)}}
+let micPaused=false,userTalkAt=0;window.userTalking=()=>Date.now()-userTalkAt<1600;
+window.micSuspend=()=>{if(!micOn||!micPrefOn())return;micPaused=true;const r=rec;rec=null;try{r?.abort()}catch(e){}};
+window.micResume=()=>{if(!micOn||!micPaused)return;if(speechSynthesis.speaking||speechSynthesis.pending){setTimeout(window.micResume,300);return}micPaused=false;if(!rec)spawnRec()};
+const micPrefOn=()=>store.get('mic-on','1')==='1';
 function stopMic(){micOn=false;const r=rec;rec=null;try{r?.abort()}catch(e){}heard.style.display='none'}
 
 /* ---------- Telecamera che non si blocca ---------- */
@@ -444,7 +454,7 @@ async function startAll(fromNav){if(started)return;started=true;unlockAudio();ke
  if(!fromNav){Voice.say('Ciao! Partiamo. Io ti spiego le lezioni piano piano, e ti avviso di autovelox, semafori, STOP e limiti di velocità. Tieni le mani sul volante: per fermarmi di\' ferma, per continuare di\' continua.',true);
   setTimeout(()=>{window.courseAPI?.play()},300)}}
 function stopAll(){started=false;bigStart.classList.remove('on');bigStart.innerHTML='▶ AVVIA';try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}Voice.stop();window.courseAPI?.stop();stopMic();stopGPS();endRoute(true);hide3D();try{wakeLock?.release()}catch(e){}
- if(userDot&&window.map){window.map.removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
+ if(userDot&&LM()){LM().removeLayer(userDot);userDot=null}limitSign.textContent='—';refresh()}
 bigStart.addEventListener('click',()=>{if(started)stopAll();else startAll(false)});
 window.addEventListener('load',refresh);setTimeout(refresh,500);
 })();
