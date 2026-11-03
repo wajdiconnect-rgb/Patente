@@ -433,7 +433,7 @@ if(wazeButton){wazeButton.textContent='📍 Destinazione';wazeButton.onclick=()=
 window.openWaze=()=>$('destinationAddress').focus();
 
 /* ---------- Comandi vocali ---------- */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;/* microfono tolto il 2 nov perché interrompeva la voce; riacceso (3 nov) SOLO per rispondere a voce al quiz in auto */let rec=null,micOn=false;
+const SR=null;/* microfono tolto (2 nov): la voce non si interrompe più */let rec=null,micOn=false;
 function showHeard(t){heard.textContent='🎙️ '+t;heard.style.display='block'}
 function micLabel(t){heard.textContent=t;heard.style.display='block'}
 const micPrefOn=()=>store.get('mic-on','1')==='1';let userTalkAt=0;window.userTalking=()=>Date.now()-userTalkAt<1800;
@@ -441,10 +441,10 @@ window.micIsOpen=()=>!!rec;window.micClose=()=>{const r=rec;rec=null;try{r?.abor
 function startMic(){micOn=false}
 function appSilent(){const C=window.courseAPI;return !speechSynthesis.speaking&&!speechSynthesis.pending&&!Voice.busy&&!window.aiBusy&&!(C&&C.isTalking&&C.isTalking())}
 const typing=()=>{const a=document.activeElement;return !!a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')};
-setInterval(()=>{if(!(micOn||(window.VQ&&window.VQ.active&&!document.body.classList.contains('casa')))||!started||document.hidden)return;if(typing()||camBusy||Date.now()<camQuietUntil){if(rec)window.micClose();return}if(appSilent()){if(!rec&&Date.now()-lastRecEnd>400)spawnRec()}else if(rec&&!window.userTalking())window.micClose()},350);
+setInterval(()=>{if(!micOn||!started||document.hidden)return;if(typing()||camBusy||Date.now()<camQuietUntil){if(rec)window.micClose();return}if(appSilent()){if(!rec&&Date.now()-lastRecEnd>400)spawnRec()}else if(rec&&!window.userTalking())window.micClose()},350);
 let lastRecEnd=0;
 let callOn=false;window.callIsOn=()=>callOn;
-function spawnRec(){if(!(window.VQ&&window.VQ.active&&!document.body.classList.contains('casa')))return;if(callOn)window.directAI=true;let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');micOn=false;return}rec=r;
+function spawnRec(){if(callOn)window.directAI=true;let r;try{r=new SR()}catch(e){micLabel('🎙️ Microfono non disponibile');micOn=false;return}rec=r;
  r.lang='it-IT';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;let last='',done=false,timer=null;
  const fire=()=>{if(done||!last.trim())return;done=true;if(window.directAI){window.directAI=false;const n=norm(last);const w=n.split(' ').length;if(w>=2&&!/^(ferma|fermati|basta|stop|avanti|indietro|ripeti|continua|riprendi|pausa|cambia (la )?voce|termina)\b/.test(n)){askAI(last,callOn);return}}command(last)};
  r.onstart=()=>{micLabel('🎙️ Ti ascolto');if(window.directAI&&actx){try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.16)}catch(e){}}};
@@ -681,7 +681,7 @@ async function aiQuestions(ls){const txt=ls.map((t,i)=>'Lezione '+(i+1)+': '+t[0
  const m=r.match(/\{[\s\S]*\}/);const j=JSON.parse(m[0]);const d=(j.domande||[]).filter(x=>x&&x.q&&typeof x.a==='boolean');if(d.length<20)throw new Error('poche domande');d.forEach(x=>{const n=parseInt(x.l,10);if(n>=1&&n<=ls.length)x.t=ls[n-1]});return d.slice(0,30)}
 const VQ={active:false,doneFor:{},list:[],i:0,err:0,done:null,waitTimer:null,asked:0,
  async start(ls,done){this.active=true;this.ls=ls;this.done=done;this.i=0;this.err=0;window.courseAPI?.pause?.();
-  say('Bravo, hai finito cinque lezioni. Adesso facciamo il quiz, come all\'esame: trenta domande. Io leggo la frase, '+(document.body.classList.contains('casa')?'tu tocca Vero oppure Falso sullo schermo.':'tu rispondi a voce, dicendo vero oppure falso. Non toccare il telefono.')+' Puoi sbagliare al massimo tre volte. Preparo le domande.');
+  say('Bravo, hai finito cinque lezioni. Adesso facciamo il quiz, come all\'esame: trenta domande. Io leggo la frase, tu tocca Vero oppure Falso sullo schermo, quando sei fermo. Puoi sbagliare al massimo tre volte. Preparo le domande.');
   let list=null;if(window.aiReady&&window.aiReady()){try{list=await aiQuestions(ls)}catch(e){}}
   this.list=list||localQuestions(ls);if(!this.list.length){this.finish();return}this.ask()},
  showPic(q){if(!q.t){const w=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const qq=w(q.q);let best=null,bs=0;(this.ls||[]).forEach(t=>{const k=w(t[0]).split(/[^a-z0-9]+/).filter(x=>x.length>3);const sc=k.filter(x=>qq.includes(x)).length/(k.length||1);if(sc>bs){bs=sc;best=t}});q.t=best||(this.ls||[])[this.i%((this.ls||[]).length||1)]}
@@ -765,7 +765,7 @@ setInterval(paint,600);paint();
 (function(){const VQ=window.VQ;if(!VQ)return;
 const bar=document.createElement('div');bar.className='vqBar';bar.innerHTML='<button type="button">Vero</button><button type="button">Falso</button>';document.body.appendChild(bar);
 const [V,F]=bar.querySelectorAll('button');V.onclick=()=>{if(VQ.active)VQ.handle('vero')};F.onclick=()=>{if(VQ.active)VQ.handle('falso')};
-const armVoce=VQ.arm;VQ.arm=function(){if(document.body.classList.contains('casa')){clearTimeout(this.waitTimer);return}armVoce.call(this)};
+VQ.arm=function(){clearTimeout(this.waitTimer)};
 setInterval(()=>bar.classList.toggle('on',!!VQ.active),400);
 const p=document.getElementById('micPref');if(p){const row=p.closest('p');if(row)row.remove()}
 })();
@@ -1176,38 +1176,4 @@ const moveSign=()=>{const s=document.querySelector('.seenSign'),cam=document.que
 })();
 </script>
 
-<script id="voceGemini">
-/* Voce Gemini: se per una frase esiste l'audio registrato, lo fa partire al posto della voce dell'iPhone.
-   Per tutte le altre frasi resta la voce dell'iPhone, come prima. */
-(function(){
-  if(!('speechSynthesis' in window)) return;
-  const S = window.speechSynthesis;
-  const norm = s => String(s || '').replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
-  const AUDIO = {};
-  const SRC = {"Il segnale di lavori preannuncia la presenza di un cantiere stradale. Riduci la velocità e segui le indicazioni temporanee.": "audio/lezione_0.mp3", "Il segnale dare precedenza impone di lasciare passare i veicoli che circolano sulla strada alla quale ti immetti o che attraversi. Fermati quando necessario.": "audio/lezione_1.mp3", "La luce rossa del semaforo impone di arrestarsi prima della linea di arresto, quando presente.": "audio/lezione_2.mp3", "Il segnale avverte che il fondo stradale può essere scivoloso. Modera la velocità ed evita manovre brusche.": "audio/lezione_3.mp3", "Il segnale preannuncia un passaggio a livello con barriere o semibarriere. Rispetta le segnalazioni e non impegnare il passaggio se non puoi liberarlo.": "audio/lezione_4.mp3", "Il segnale indica l’inizio di un’autostrada. Si applicano le regole previste per questo tipo di strada.": "audio/lezione_5.mp3"};
-  Object.keys(SRC).forEach(k => { AUDIO[norm(k)] = SRC[k]; });
-  const proto = Object.getPrototypeOf(S);
-  const speakVero = S.speak.bind(S), cancelVero = S.cancel.bind(S), pauseVero = S.pause.bind(S), resumeVero = S.resume.bind(S);
-  const speakingVero = Object.getOwnPropertyDescriptor(proto, 'speaking');
-  const player = new Audio(); player.preload = 'auto';
-  let attuale = null;
-  const evento = (u, tipo) => { try { u.dispatchEvent(new Event(tipo)); } catch (e) { try { u['on' + tipo] && u['on' + tipo]({ type: tipo }); } catch (_) {} } };
-  const ripiega = u => { if (attuale === u) { attuale = null; speakVero(u); } };
-  S.speak = function(u){
-    const file = u && AUDIO[norm(u.text)];
-    if (!file) return speakVero(u);
-    if (attuale) { attuale = null; player.pause(); }
-    attuale = u; player.src = file;
-    player.onended = () => { if (attuale === u) { attuale = null; evento(u, 'end'); } };
-    player.onerror = () => ripiega(u);
-    player.play().then(() => { if (attuale === u) evento(u, 'start'); }).catch(() => ripiega(u));
-  };
-  S.cancel = function(){ if (attuale) { attuale = null; player.pause(); } return cancelVero(); };
-  S.pause = function(){ if (attuale) { player.pause(); return; } return pauseVero(); };
-  S.resume = function(){ if (attuale) { player.play().catch(() => {}); return; } return resumeVero(); };
-  try {
-    Object.defineProperty(S, 'speaking', { configurable: true, get(){ return (!!attuale) || (speakingVero ? speakingVero.get.call(S) : false); } });
-  } catch (e) {}
-})();
-</script>
 </body></html>
