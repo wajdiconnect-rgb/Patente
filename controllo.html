@@ -1,0 +1,31 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controllo telefono</title>
+<style>body{font:17px -apple-system,sans-serif;margin:0;padding:16px;background:#f2f4f7;color:#142b42}h1{font-size:22px}
+button{display:block;width:100%;font:700 18px -apple-system,sans-serif;padding:16px;margin:10px 0;border:0;border-radius:14px;background:#1264ce;color:#fff}
+.r{background:#fff;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:15px;white-space:pre-wrap;word-break:break-word}
+.ok{border-left:6px solid #1a9d4b}.ko{border-left:6px solid #e03131}video{width:100%;border-radius:12px;background:#000;margin-top:8px}</style></head><body>
+<h1>Controllo del telefono</h1><p>Premi i bottoni uno alla volta, poi fai uno <b>screenshot</b> e mandalo.</p>
+<button onclick="voce()">1. Prova voce del telefono</button>
+<button onclick="reg()">2. Prova voce registrata</button>
+<button onclick="cam()">3. Prova telecamera</button>
+<button onclick="app()">4. Controlla l'app</button>
+<video id="v" playsinline muted autoplay></video>
+<div id="out"></div>
+<script>
+const out=document.getElementById('out');
+function r(ok,t){const d=document.createElement('div');d.className='r '+(ok?'ok':'ko');d.textContent=(ok?'✅ ':'❌ ')+t;out.prepend(d)}
+r(true,'Telefono: '+navigator.userAgent);
+window.onerror=(m,s,l)=>r(false,'Errore: '+m+' (riga '+l+')');
+function voce(){try{if(!('speechSynthesis' in window))return r(false,'Voce: non disponibile');const u=new SpeechSynthesisUtterance('Ciao, questa è la voce del telefono.');u.lang='it-IT';
+const it=speechSynthesis.getVoices().filter(v=>/^it/i.test(v.lang)).map(v=>v.name);
+let ok=false;u.onstart=()=>{ok=true;r(true,'Voce del telefono: parla')};u.onerror=e=>r(false,'Voce del telefono: errore '+e.error);
+speechSynthesis.cancel();speechSynthesis.speak(u);setTimeout(()=>{if(!ok)r(false,'Voce del telefono: non parte. Voci italiane: '+(it.join(', ')||'nessuna'))},4000)}catch(e){r(false,'Voce: '+e.message)}}
+function reg(){const a=new Audio('audio/lezione_0.mp3');a.play().then(()=>r(true,'Voce registrata: suona (se non senti niente, controlla la levetta del silenzioso e il volume)')).catch(e=>r(false,'Voce registrata: '+e.name+' '+e.message))}
+async function cam(){try{if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return r(false,'Telecamera: non disponibile (apri il link in Safari, non dentro WhatsApp o Instagram)');
+const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});document.getElementById('v').srcObject=s;r(true,'Telecamera: funziona')}
+catch(e){r(false,'Telecamera: '+e.name+' — '+(e.name==='NotAllowedError'?'permesso negato. Impostazioni → Safari → Fotocamera → Consenti':e.message))}}
+function app(){const f=document.createElement('iframe');f.style.cssText='width:1px;height:1px;border:0;opacity:0';f.src='index.html?c='+Date.now();
+let n=0;f.onload=()=>{try{f.contentWindow.addEventListener('error',e=>{n++;r(false,'Errore nell\'app: '+e.message+' (riga '+e.lineno+')')});setTimeout(()=>{const ok=!!f.contentWindow.document.getElementById('autoPlay');r(ok&&!n,'App: '+(ok?'caricata':'non caricata')+(n?', con '+n+' errori':', senza errori'))},5000)}catch(e){r(false,'App: '+e.message)}};
+window.addEventListener('message',()=>{});document.body.appendChild(f);
+const orig=f;setTimeout(()=>{},0)}
+</script></body></html>
