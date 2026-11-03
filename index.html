@@ -1176,53 +1176,5 @@ const moveSign=()=>{const s=document.querySelector('.seenSign'),cam=document.que
 })();
 </script>
 
-<script id="voceRegistrata">
-/* Voce da uomo registrata (Gemini): se una frase ha il suo file audio lo fa sentire,
-   altrimenti parla la voce dell'iPhone. Versione sicura (4 nov):
-   - una frase alla volta, come la voce dell'iPhone
-   - il lettore audio viene "sbloccato" al primo tocco (su iPhone serve)
-   - se l'audio non parte in 2,5 secondi o si blocca, parla subito la voce dell'iPhone
-   - non tocca mai microfono, telecamera o GPS */
-(function(){
-  if(!('speechSynthesis' in window)) return;
-  const S = window.speechSynthesis;
-  const norm = s => String(s || '').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
-  const SRC = {"Il segnale di lavori preannuncia la presenza di un cantiere stradale. Riduci la velocità e segui le indicazioni temporanee.": "audio/lezione_0.mp3", "Il segnale dare precedenza impone di lasciare passare i veicoli che circolano sulla strada alla quale ti immetti o che attraversi. Fermati quando necessario.": "audio/lezione_1.mp3", "La luce rossa del semaforo impone di arrestarsi prima della linea di arresto, quando presente.": "audio/lezione_2.mp3", "Il segnale avverte che il fondo stradale può essere scivoloso. Modera la velocità ed evita manovre brusche.": "audio/lezione_3.mp3", "Il segnale preannuncia un passaggio a livello con barriere o semibarriere. Rispetta le segnalazioni e non impegnare il passaggio se non puoi liberarlo.": "audio/lezione_4.mp3", "Il segnale indica l’inizio di un’autostrada. Si applicano le regole previste per questo tipo di strada.": "audio/lezione_5.mp3"};
-  const AUDIO = {}; Object.keys(SRC).forEach(k => { AUDIO[norm(k)] = SRC[k]; });
-  const speakVero = S.speak.bind(S), cancelVero = S.cancel.bind(S), pauseVero = S.pause.bind(S), resumeVero = S.resume.bind(S);
-  const proto = Object.getPrototypeOf(S);
-  const speakingVero = Object.getOwnPropertyDescriptor(proto, 'speaking');
-  const player = new Audio(); player.preload = 'auto'; player.setAttribute('playsinline', '');
-  let sbloccato = false, attuale = null, guardia = null;
-  const SILENZIO = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-  const sblocca = () => {
-    if (sbloccato || attuale) return;
-    try { player.src = SILENZIO; const p = player.play(); if (p && p.then) p.then(() => { sbloccato = true; player.pause(); }).catch(() => {}); else sbloccato = true; } catch (e) {}
-  };
-  ['touchend', 'click', 'keydown'].forEach(t => document.addEventListener(t, sblocca, true));
-  const evento = (u, tipo) => { try { const f = u['on' + tipo]; if (f) f.call(u, { type: tipo, utterance: u }); } catch (e) {} };
-  const chiudi = () => { clearTimeout(guardia); guardia = null; player.onended = player.onerror = null; try { player.pause(); } catch (e) {} };
-  const ripiega = u => { if (attuale !== u) return; attuale = null; chiudi(); speakVero(u); };
-  const fine = u => { if (attuale !== u) return; attuale = null; chiudi(); evento(u, 'end'); };
-  S.speak = function(u){
-    const file = u && AUDIO[norm(u.text)];
-    if (!file || !sbloccato) return speakVero(u);
-    if (attuale) { attuale = null; chiudi(); }
-    attuale = u; player.src = file;
-    player.onended = () => fine(u);
-    player.onerror = () => ripiega(u);
-    guardia = setTimeout(() => ripiega(u), 2500);
-    let p; try { p = player.play(); } catch (e) { return ripiega(u); }
-    if (p && p.then) p.then(() => {
-      if (attuale !== u) return; clearTimeout(guardia); evento(u, 'start');
-      const durata = (isFinite(player.duration) && player.duration > 0 ? player.duration : 30) * 1000;
-      guardia = setTimeout(() => fine(u), durata + 4000);
-    }).catch(() => ripiega(u));
-  };
-  S.cancel = function(){ if (attuale) { attuale = null; chiudi(); } return cancelVero(); };
-  S.pause = function(){ if (attuale) { try { player.pause(); } catch (e) {} return; } return pauseVero(); };
-  S.resume = function(){ if (attuale) { player.play().catch(() => {}); return; } return resumeVero(); };
-  try { Object.defineProperty(S, 'speaking', { configurable: true, get(){ return !!attuale || (speakingVero ? speakingVero.get.call(S) : false); } }); } catch (e) {}
-})();
-</script>
+
 </body></html>
