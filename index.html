@@ -194,7 +194,7 @@ const MALE=/(luca|diego|eddy|reed|cosimo|giorgio|rocko|grandpa|roberto|marco|pao
 function pickVoice(){const vs=speechSynthesis.getVoices().filter(v=>/^it/i.test(v.lang));const m=vs.filter(v=>MALE.test(v.name));const ch=vs.find(v=>v.name===chosenVoice);if(ch)return ch;const best=m.find(v=>/(enhanced|premium|migliorata)/i.test(v.name))||m.find(v=>/luca/i.test(v.name))||m[0];if(best)return best;return vs.find(v=>/it[-_]IT/i.test(v.lang)&&/(enhanced|premium|migliorata)/i.test(v.name))||vs.find(v=>/it[-_]IT/i.test(v.lang))||vs.find(v=>v.lang.startsWith('it'))||null}
 if('speechSynthesis' in window){
  const nativeSpeak=speechSynthesis.speak.bind(speechSynthesis);
- speechSynthesis.speak=function(u){try{u.rate=getRate();u.lang='it-IT';const v=u._ai?pickAIVoice():pickVoice();if(v)u.voice=v;u.pitch=u._ai?0.95:1.06}catch(e){}
+ speechSynthesis.speak=function(u){try{const K=window._uttKeep=window._uttKeep||[];K.push(u);if(K.length>30)K.shift()}catch(e){}try{u.rate=getRate();u.lang='it-IT';const v=u._ai?pickAIVoice():pickVoice();if(v)u.voice=v;u.pitch=u._ai?0.95:1.06}catch(e){}
   try{if(!u._guard){u._guard=1;const oe=u.onend,oerr=u.onerror;let once=false,t0=0,quiet=0,iv=null,bk=null;const clear=()=>{clearInterval(iv);clearTimeout(bk)};
    const finish=()=>{if(once)return;once=true;clear();try{speechSynthesis.cancel()}catch(_){}try{oe&&oe.call(u,{type:'end',utterance:u})}catch(_){}};
    u.onend=e=>{if(once)return;once=true;clear();oe&&oe.call(u,e)};u.onerror=e=>{if(once)return;once=true;clear();oerr&&oerr.call(u,e)};
