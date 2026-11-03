@@ -512,7 +512,7 @@ function command(raw){const t=norm(raw);if(!t)return;if(window.VQ&&window.VQ.act
 function readQuestion(){setTimeout(()=>Voice.say($('quizQuestion').textContent+' Rispondi: vero, oppure falso.',true),200)}
 
 /* ---------- Intelligenza artificiale (Claude): risponde a voce e legge i cartelli ---------- */
-const aiKey=()=>store.get('ai-key','').trim();const aiSignsOn=()=>store.get('ai-signs','1')==='1';
+const aiKey=()=>store.get('ai-key','').replace(/[\s"'“”‘’]/g,'').replace(/^key=/i,'');const aiSignsOn=()=>store.get('ai-signs','1')==='1';
 const MODELS=['claude-haiku-5-5','claude-sonnet-5-5'];let modelIdx=0;window.aiBusy=false;const chat=[];
 const isGemini=()=>!/^sk-ant/.test(aiKey());let aiPauseUntil=0;
 const GEM=['gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-flash-latest','gemini-3.6-flash','gemini-2.5-flash-lite','gemini-2.5-flash'];let gemIdx=0;
@@ -522,7 +522,7 @@ async function gemini(messages,system,maxTokens,json,vision){const key=aiKey();c
  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:(typeof m.content==='string'?[{text:m.content}]:m.content.map(c=>c.type==='image'?{inline_data:{mime_type:'image/jpeg',data:c.source.data}}:{text:c.text}))}));
  let lastErr=null,quota=0;
  for(let k=0;k<LIST.length;k++){const mi=(start+k)%LIST.length;const body={systemInstruction:{parts:[{text:system}]},contents,generationConfig:{maxOutputTokens:Math.max(1024,maxTokens*4),temperature:vision?0:0.3}};if(json)body.generationConfig.responseMimeType='application/json';
-  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+LIST[mi]+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)})}catch(e){lastErr=new Error('connessione assente');break}
+  let r;const URLG='https://generativelanguage.googleapis.com/v1beta/models/'+LIST[mi]+':generateContent';try{r=await fetch(URLG,{method:'POST',headers:window._gemBearer?{'content-type':'application/json','authorization':'Bearer '+key}:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});if(r.status===401&&!window._gemBearer){const r2=await fetch(URLG,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify(body)});if(r2.ok||r2.status!==401){window._gemBearer=true;r=r2}}}catch(e){lastErr=new Error('connessione assente');break}
   if(r.ok){const j=await r.json();const txt=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('').trim();if(txt){if(vision)gemVisIdx=mi;else gemIdx=mi;return txt}lastErr=new Error('risposta vuota');continue}
   const t=await r.text();if(r.status===400&&/API_KEY_INVALID|API key not valid/i.test(t))throw new Error('la chiave non è valida');if(r.status===401||r.status===403)throw new Error('chiave Gemini non valida');
   if(r.status===404){lastErr=new Error('modello non disponibile');continue}if(r.status===429){quota++;lastErr=new Error('limite gratuito raggiunto, riprovo tra poco');continue}
