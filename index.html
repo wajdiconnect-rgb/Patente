@@ -198,9 +198,9 @@ if('speechSynthesis' in window){
   try{if(!u._guard){u._guard=1;const oe=u.onend,oerr=u.onerror;let once=false,t0=0,quiet=0,iv=null,bk=null;const clear=()=>{clearInterval(iv);clearTimeout(bk)};
    const finish=()=>{if(once)return;once=true;clear();try{speechSynthesis.cancel()}catch(_){}try{oe&&oe.call(u,{type:'end',utterance:u})}catch(_){}};
    u.onend=e=>{if(once)return;once=true;clear();oe&&oe.call(u,e)};u.onerror=e=>{if(once)return;once=true;clear();oerr&&oerr.call(u,e)};
-   u.addEventListener('start',()=>{t0=Date.now()});
+   u.addEventListener('start',()=>{t0=Date.now()});let bIdx=-1,bT=0;const tx=String(u.text||'');const lastW=Math.max(0,tx.replace(/[\s.,;:!?'"»)]+$/,'').search(/\S+$/));u.addEventListener('boundary',e=>{if(typeof e.charIndex==='number'&&e.charIndex>=bIdx){bIdx=e.charIndex;bT=Date.now()}});
    const len=String(u.text||'').length,ms=3500+len*130/Math.max(0.5,u.rate||0.75);bk=setTimeout(finish,ms);
-   const born=Date.now();iv=setInterval(()=>{if(once){clear();return}if(speechSynthesis.speaking||speechSynthesis.pending){quiet=0;return}if(Date.now()-born<2500)return;if(++quiet>=2)finish()},800)}}catch(e){}
+   const born=Date.now();iv=setInterval(()=>{if(once){clear();return}if(bT&&((bIdx>=lastW&&Date.now()-bT>900)||Date.now()-bT>3000)){finish();return}if(speechSynthesis.speaking||speechSynthesis.pending){quiet=0;return}if(Date.now()-born<2500)return;if(++quiet>=2)finish()},800)}}catch(e){}
   try{if(window.micIsOpen&&window.micIsOpen()){window.micClose();setTimeout(()=>nativeSpeak(u),400);return}}catch(e){}return nativeSpeak(u)};
  // menu per scegliere la voce, nella pagina Voce
  const fillVoices=()=>{const box=$('voicePicker');if(!box)return;const vs=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('it'));box.innerHTML='<option value="">Voce italiana automatica</option>'+vs.map(v=>`<option ${v.name===chosenVoice?'selected':''}>${v.name}</option>`).join('')};
