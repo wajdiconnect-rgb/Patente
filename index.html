@@ -1185,5 +1185,4 @@ const moveSign=()=>{const s=document.querySelector('.seenSign'),cam=document.que
 </script>
 
 
-<script id="avvisoSilenzioso">(function(){var shown=false;function show(){if(shown)return;shown=true;var d=document.createElement('div');d.textContent='🔔 Non senti la voce? Togli il silenzioso (Impostazioni → Suoni → Modalità silenziosa) e alza il volume.';d.style.cssText='position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 70px);z-index:99998;background:#142b42;color:#fff;font:600 15px/1.35 -apple-system,sans-serif;padding:12px 14px;border-radius:14px;box-shadow:0 6px 20px #0005';d.onclick=function(){d.remove()};document.body.appendChild(d);setTimeout(function(){d.remove()},9000)}
-document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('button');if(!b)return;var t=(b.textContent||'').trim();if(/AVVIA|Ascolta|Avvia corso|Prova voce/i.test(t))show()},true)})();</script></body></html>
+</body></html>
